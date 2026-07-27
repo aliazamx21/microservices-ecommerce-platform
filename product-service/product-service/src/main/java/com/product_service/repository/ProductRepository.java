@@ -7,14 +7,9 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
-public interface ProductRepository extends JpaRepository<Product,Integer> {
-    @Query("""
-    SELECT DISTINCT p FROM Product p
-    LEFT JOIN p.brands b
-    WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
-       OR LOWER(p.subCategory.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
-       OR LOWER(b.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
-""")
-    List<Product> searchProducts(@Param("keyword") String keyword);
+public interface ProductRepository extends JpaRepository<Product, Long> {
 
+    // This searches for the keyword in the product's name or description
+    @Query("SELECT p FROM Product p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Product> searchProducts(@Param("keyword") String keyword);
 }
