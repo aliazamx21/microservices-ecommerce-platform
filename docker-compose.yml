@@ -1,9 +1,5 @@
 version: '3.8'
 
-services:
-  zipkin:
-    image: openzipkin/zipkin
-    container_name: zipkin-server
-    ports:
-      - "9411:9411"
-    restart: always
+include:
+  - zipkin/Zipkin.yml
+  - logstash/ELK.yml
