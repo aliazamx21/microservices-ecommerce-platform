@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_JDBC_USERNAME=sonar
+      - SONAR_JDBC_PASSWORD=sonar
+    restart: unless-stopped
+    networks:
+      - ecommerceapp_default
+
+networks:
+  ecommerceapp_default:
+    external: true
