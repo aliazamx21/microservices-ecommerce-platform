@@ -23,11 +23,28 @@ spec:
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: "http://zipkin:9411/api/v2/spans"
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:mysql://host.docker.internal:3306/product_db?createDatabaseIfNotExist=true&useSSL=false"
+              value: "jdbc:mysql://ecommerce-db.c7wayskcmof7.ap-south-1.rds.amazonaws.com:3306/product_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
             - name: SPRING_DATASOURCE_USERNAME
-              value: "root"
+              value: "admin"
             - name: SPRING_DATASOURCE_PASSWORD
-              value: "test"
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: SPRING_DATASOURCE_PASSWORD
+            - name: AWS_REGION
+              value: "ap-south-1"
+            - name: AWS_S3_BUCKET_NAME
+              value: "ecommerce-product-images-aliaz"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: AWS_SECRET_ACCESS_KEY
 ---
 apiVersion: v1
 kind: Service
