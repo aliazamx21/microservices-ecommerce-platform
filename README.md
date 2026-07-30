@@ -12,6 +12,7 @@ A robust, enterprise-grade e-commerce backend platform built using Java, Spring 
 * **AWS S3:** Cloud storage integration for product images and media assets.
 * **Stripe API:** Secure payment processing gateway.
 * **Docker & Docker Compose:** Containerization for rapid infrastructure deployment and environment consistency.
+* **Kubernetes (K8s):** Container orchestration for auto-scaling, self-healing, and managing microservices deployments.
 * **GitHub Actions & Docker Hub:** Automated CI/CD pipelines for cloud builds and image registry.
 * **ELK Stack (Elasticsearch, Logstash, Kibana):** Centralized logging pipeline and real-time visual dashboards.
 * **Zipkin & Micrometer:** Distributed tracing to track and monitor request latency across all microservices.
@@ -33,6 +34,12 @@ A robust, enterprise-grade e-commerce backend platform built using Java, Spring 
 * **`kibana` (Port 5601)** - The interactive UI dashboard used to search, view, and analyze the aggregated logs.
 * **`zipkin` (Port 9411)** - The tracing server that visualizes exactly how long a request took as it hopped between different microservices.
 
+### ☸️ Kubernetes Orchestration
+The entire application is orchestrated using Kubernetes, making it cloud-agnostic and highly available.
+* **Deployments:** Manages stateless pods ensuring desired replication and self-healing.
+* **Services:** Utilizes `ClusterIP` for secure internal microservice-to-microservice communication, and `LoadBalancer` to expose the API Gateway and Eureka Server to external traffic.
+* **Infrastructure as Code:** All infrastructure declarations are stored in the `/k8s` directory for reproducible builds.
+
 ## ⚙️ CI/CD Pipeline (Automated Deployments)
 This project utilizes **GitHub Actions** for continuous integration and delivery.
 * Every push to the `main` branch triggers an isolated Ubuntu cloud runner.
@@ -43,26 +50,26 @@ This project utilizes **GitHub Actions** for continuous integration and delivery
 *When an interviewer asks about your system design flow, explain it through this end-to-end user journey:*
 
 1. **Authentication:**
-    * The user sends credentials to `authservice` via the `api-gateway`.
-    * Upon successful verification, a JWT token is issued back to the client.
+   * The user sends credentials to `authservice` via the `api-gateway`.
+   * Upon successful verification, a JWT token is issued back to the client.
 
 2. **Routing & Gateway Filtering:**
-    * Subsequent requests from the client carry the JWT token in the header and hit the API Gateway.
-    * The Gateway's custom `AuthenticationFilter` validates the JWT token before routing the request to downstream services.
+   * Subsequent requests from the client carry the JWT token in the header and hit the API Gateway.
+   * The Gateway's custom `AuthenticationFilter` validates the JWT token before routing the request to downstream services.
 
 3. **Service Discovery:**
-    * The API Gateway uses Eureka Server to look up the dynamic network locations of internal microservices (e.g., `product-service`, `order-service`) rather than hardcoding IP addresses.
+   * The API Gateway uses Eureka Server to look up the dynamic network locations of internal microservices (e.g., `product-service`, `order-service`) rather than hardcoding IP addresses.
 
 4. **Checkout & Inter-Service Communication:**
-    * When a user checks out, the `order-service` triggers a call to the `cart-service` (using OpenFeign) to fetch the user's current cart items.
-    * Once items are retrieved, an order is created with a PENDING status.
+   * When a user checks out, the `order-service` triggers a call to the `cart-service` (using OpenFeign) to fetch the user's current cart items.
+   * Once items are retrieved, an order is created with a PENDING status.
 
 5. **Payment Processing:**
-    * The `payment-service` takes the order details, communicates with the Stripe API to process the payment securely, and updates the final order status upon success.
+   * The `payment-service` takes the order details, communicates with the Stripe API to process the payment securely, and updates the final order status upon success.
 
 6. **Observability (Logging & Tracing):**
-    * As the user's request travels through the Gateway and downstream services, Micrometer & Zipkin attach a unique "Trace ID" to the request, allowing developers to visually track bottlenecks.
-    * Simultaneously, all services asynchronously stream their structured logs via TCP to Logstash, which indexes them in Elasticsearch for real-time monitoring and debugging in Kibana.
+   * As the user's request travels through the Gateway and downstream services, Micrometer & Zipkin attach a unique "Trace ID" to the request, allowing developers to visually track bottlenecks.
+   * Simultaneously, all services asynchronously stream their structured logs via TCP to Logstash, which indexes them in Elasticsearch for real-time monitoring and debugging in Kibana.
 
 ## 📂 Database Design
 An ER diagram (`ER_Diagram.mwb`) is included in the repository outlining the relational database schemas for users, products, carts, orders, and payments following a **Database-per-Service** microservices architecture pattern.
