@@ -37,6 +37,5 @@ jobs:
 
       - name: Terraform Destroy
         run: |
-          cd terraform
-          terraform init
-          terraform destroy -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
+          terraform -chdir=terraform init
+          terraform -chdir=terraform destroy -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
