@@ -7,9 +7,14 @@ on:
     paths:
       - 'eureka-server/**'
       - '.github/workflows/eureka-server.yml'
+  workflow_run:
+    workflows: ["Infrastructure Provisioning (Terraform)"]
+    types:
+      - completed
 
 jobs:
   build-and-deploy:
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code

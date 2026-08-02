@@ -235,6 +235,7 @@ resource "helm_release" "kafka" {
   name       = "kafka"
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "kafka"
+  version    = "26.6.2" # ADDED: Valid version explicitly declared
 
   set {
     name  = "replicaCount"
@@ -259,6 +260,7 @@ resource "helm_release" "prometheus" {
   chart            = "kube-prometheus-stack"
   namespace        = "monitoring"
   create_namespace = true
+  timeout          = 600 # ADDED: Give EKS more time to spin up nodes before timing out
 
   set {
     name  = "grafana.service.type"
