@@ -37,5 +37,11 @@ jobs:
 
       - name: Terraform Destroy
         run: |
+          export KUBE_CONFIG_PATH=~/.kube/config
           terraform -chdir=terraform init
+          
+          # Remove Helm releases from state since they are already uninstalled
+          terraform -chdir=terraform state rm helm_release.kafka || true
+          terraform -chdir=terraform state rm helm_release.prometheus || true
+          
           terraform -chdir=terraform destroy -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
