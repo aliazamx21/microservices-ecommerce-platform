@@ -7,6 +7,7 @@ import com.order_service.entity.Order;
 import com.order_service.entity.OrderItem;
 import com.order_service.repository.OrderRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -16,13 +17,15 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final CartFeignClient cartFeignClient;
+    private final KafkaTemplate<String, String> kafkaTemplate; // Added for Kafka
 
-    public OrderService(OrderRepository orderRepository, CartFeignClient cartFeignClient) {
+    // Injected KafkaTemplate into the constructor
+    public OrderService(OrderRepository orderRepository, CartFeignClient cartFeignClient, KafkaTemplate<String, String> kafkaTemplate) {
         this.orderRepository = orderRepository;
         this.cartFeignClient = cartFeignClient;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
-    // 1. Added Long userId to the method signature
     @Transactional
     public Order placeOrder(String cartUuid, Long userId) {
 
@@ -35,10 +38,7 @@ public class OrderService {
 
         // Initialize Order
         Order order = new Order();
-
-        // 2. Use the provided userId, or fallback to the cart's userId if guest
         order.setUserId(userId != null ? userId : cart.getUserId());
-
         order.setCartuuid(cartUuid);
         order.setStatus("CREATED");
 
@@ -64,6 +64,17 @@ public class OrderService {
         // Save Order to Database
         Order savedOrder = orderRepository.save(order);
 
+        // --- THE SAGA PATTERN: PUBLISH EVENT TO KAFKA ---
+        try {
+            // Create a simple JSON payload
+            String eventPayload = String.format("{\"orderId\":%d, \"amount\":%f}", savedOrder.getId(), savedOrder.getTotalAmount());
+            // Blast it to the Kafka topic
+            kafkaTemplate.send("order-created", String.valueOf(savedOrder.getId()), eventPayload);
+            System.out.println("Published OrderCreatedEvent to Kafka for Order ID: " + savedOrder.getId());
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to publish to Kafka: " + e.getMessage());
+        }
+
         // Clear Cart in Cart Service via Feign Client
         try {
             cartFeignClient.clearCart(cartUuid);
@@ -75,7 +86,6 @@ public class OrderService {
     }
 
     public boolean markOrderStatus(long id) {
-
         Order order = orderRepository.findById(id).get();
         order.setStatus("COMPLETED");
         Order savedOrder = orderRepository.save(order);
@@ -84,7 +94,5 @@ public class OrderService {
         } else{
             return false;
         }
-
-
     }
 }

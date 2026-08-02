@@ -19,11 +19,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build Eureka Server with Maven
-        run: mvn -f eureka-server/eureka-server/pom.xml clean package -DskipTests
-
-      - name: Build API Gateway with Maven
-        run: mvn -f api-gateway/api-gateway/pom.xml clean package -DskipTests
+      - name: Build All Microservices with Maven
+        run: |
+          mvn -f eureka-server/eureka-server/pom.xml clean package -DskipTests
+          mvn -f api-gateway/api-gateway/pom.xml clean package -DskipTests
+          mvn -f authservice/pom.xml clean package -DskipTests
+          mvn -f product-service/pom.xml clean package -DskipTests
+          mvn -f cart-service/pom.xml clean package -DskipTests
+          mvn -f order-service/pom.xml clean package -DskipTests
+          mvn -f payment-service/pom.xml clean package -DskipTests
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -31,15 +35,35 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Eureka Server
+      - name: Build and Push Docker Images
         run: |
+          # Eureka Server
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/eureka-server:latest ./eureka-server/eureka-server
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/eureka-server:latest
-
-      - name: Build and Push API Gateway
-        run: |
+          
+          # API Gateway
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest ./api-gateway/api-gateway
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest
+          
+          # Auth Service
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/authservice:latest ./authservice
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/authservice:latest
+          
+          # Product Service
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/product-service:latest ./product-service
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/product-service:latest
+          
+          # Cart Service
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/cart-service:latest ./cart-service
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/cart-service:latest
+          
+          # Order Service
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest ./order-service
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
+          
+          # Payment Service
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/payment-service:latest ./payment-service
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/payment-service:latest
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -47,6 +71,15 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init & Apply
+        run: |
+          cd terraform
+          terraform init
+          terraform apply -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
 
       - name: Update kubeconfig for EKS
         run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
