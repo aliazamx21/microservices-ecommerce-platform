@@ -30,3 +30,27 @@ jobs:
           cd terraform
           terraform init
           terraform apply -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
+
+      - name: Update kubeconfig for EKS
+        run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
+
+      - name: Install Kafka and Prometheus in Cloud EKS
+        run: |
+          # Add Helm repositories
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+
+          # Install Kafka sequentially for t3.micro stability
+          helm upgrade --install kafka bitnami/kafka \
+            --set replicaCount=1 \
+            --set auth.clientProtocol=none \
+            --set listeners.client.protocol=PLAINTEXT \
+            --timeout 10m
+
+          # Install Prometheus & Grafana
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --create-namespace \
+            --set grafana.service.type=LoadBalancer \
+            --timeout 10m

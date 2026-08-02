@@ -15,9 +15,8 @@ terraform {
     }
   }
 
-  # Stores terraform state in S3 so GitHub Actions runners don't lose infrastructure history
   backend "s3" {
-    bucket = "ecommerce-tfstate-aliaz" # MAKE SURE to create this S3 bucket manually in AWS console once!
+    bucket = "ecommerce-tfstate-aliaz"
     key    = "state/terraform.tfstate"
     region = "ap-south-1"
   }
@@ -27,14 +26,12 @@ provider "aws" {
   region = "ap-south-1"
 }
 
-# Variable passed safely from GitHub Secrets
 variable "db_password" {
   description = "Database administrator password"
   type        = string
   sensitive   = true
 }
 
-# 1. VPC and Networking (For Auto-scaling and high availability)
 resource "aws_vpc" "ecommerce_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
@@ -85,7 +82,6 @@ resource "aws_route_table_association" "b" {
   route_table_id = aws_route_table.public.id
 }
 
-# 2. EKS Cluster IAM Role
 resource "aws_iam_role" "eks_cluster" {
   name = "ecommerce-eks-cluster-role"
   assume_role_policy = jsonencode({
@@ -103,7 +99,6 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-# 3. EKS Cluster
 resource "aws_eks_cluster" "ecommerce" {
   name     = "ecommerce-cluster"
   role_arn = aws_iam_role.eks_cluster.arn
@@ -115,7 +110,6 @@ resource "aws_eks_cluster" "ecommerce" {
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
 }
 
-# 4. EKS Node Group (Handles automatic crash recovery and pod scaling)
 resource "aws_iam_role" "eks_nodes" {
   name = "ecommerce-eks-node-role"
   assume_role_policy = jsonencode({
@@ -164,7 +158,6 @@ resource "aws_eks_node_group" "nodes" {
   ]
 }
 
-# 5. RDS MySQL Database (Stores data safely with auto-recovery)
 resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "ecommerce-rds-subnet-group"
   subnet_ids = [aws_subnet.public_subnet_1.id, aws_subnet.public_subnet_2.id]
@@ -197,14 +190,13 @@ resource "aws_db_instance" "ecommerce_db" {
   allocated_storage      = 20
   db_name                = "payment_db"
   username               = "admin"
-  password               = var.db_password # Dynamic secret from GitHub Actions
+  password               = var.db_password
   skip_final_snapshot    = true
   publicly_accessible    = true
   db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
 }
 
-# 6. S3 Bucket for Product Images (Unique suffix added)
 resource "random_id" "bucket_suffix" {
   byte_length = 4
 }
@@ -212,60 +204,4 @@ resource "random_id" "bucket_suffix" {
 resource "aws_s3_bucket" "product_images" {
   bucket        = "ecommerce-product-images-${random_id.bucket_suffix.hex}"
   force_destroy = true
-}
-
-# ------------------------------------------------------------------
-# 7. HELM PROVIDER & KUBERNETES MANAGED RESOURCES
-# ------------------------------------------------------------------
-
-data "aws_eks_cluster_auth" "cluster_auth" {
-  name = aws_eks_cluster.ecommerce.name
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = aws_eks_cluster.ecommerce.endpoint
-    cluster_ca_certificate = base64decode(aws_eks_cluster.ecommerce.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.cluster_auth.token
-  }
-}
-
-# DEPLOY KAFKA VIA TERRAFORM
-resource "helm_release" "kafka" {
-  name       = "kafka"
-  repository = "https://charts.bitnami.com/bitnami"
-  chart      = "kafka"
-  version    = "26.6.2" # ADDED: Valid version explicitly declared
-
-  set {
-    name  = "replicaCount"
-    value = "1"
-  }
-  set {
-    name  = "auth.clientProtocol"
-    value = "none"
-  }
-  set {
-    name  = "listeners.client.protocol"
-    value = "PLAINTEXT"
-  }
-
-  depends_on = [aws_eks_node_group.nodes]
-}
-
-# DEPLOY PROMETHEUS & GRAFANA VIA TERRAFORM
-resource "helm_release" "prometheus" {
-  name             = "monitoring"
-  repository       = "https://prometheus-community.github.io/helm-charts"
-  chart            = "kube-prometheus-stack"
-  namespace        = "monitoring"
-  create_namespace = true
-  timeout          = 600 # ADDED: Give EKS more time to spin up nodes before timing out
-
-  set {
-    name  = "grafana.service.type"
-    value = "LoadBalancer"
-  }
-
-  depends_on = [aws_eks_node_group.nodes]
 }

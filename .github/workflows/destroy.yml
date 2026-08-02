@@ -17,11 +17,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      - name: Update kubeconfig
+      - name: Update kubeconfig for EKS
         run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
 
-      - name: Delete Microservices
+      - name: Delete Microservices from EKS
         run: kubectl delete -f k8s/ --ignore-not-found=true
+
+      - name: Uninstall Kafka and Prometheus via Helm
+        run: |
+          helm uninstall kafka --ignore-not-found || true
+          helm uninstall monitoring --namespace monitoring --ignore-not-found || true
+          kubectl delete namespace monitoring --ignore-not-found || true
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
