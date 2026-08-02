@@ -32,6 +32,9 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Re-update kubeconfig for Terraform
+        run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
+
       - name: Terraform Destroy
         run: |
           cd terraform
