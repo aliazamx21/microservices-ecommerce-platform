@@ -1,6 +1,5 @@
 package com.order_service.service; // Make sure this matches your folder structure in order-service
 
-import com.order_service.service.OrderService; // Make sure it imports YOUR OrderService!
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
