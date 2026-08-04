@@ -1,75 +1,85 @@
-# 🚀 Distributed Microservices E-Commerce Platform
+# 🛒 Microservices E-Commerce Platform
 
-A robust, enterprise-grade e-commerce backend platform built using Java, Spring Boot, and Spring Cloud. This system uses a microservices architecture to handle user authentication, product management, shopping carts, order processing, secure payment integrations, and centralized observability.
+A cloud-native e-commerce backend built with **Spring Boot**, **Kafka**, **Docker**, **Kubernetes**, **Terraform**, and **AWS**. The project demonstrates a scalable microservices architecture with secure authentication, asynchronous messaging, centralized observability, and automated CI/CD.
 
-## 🛠️ Tech Stack & Architecture Components
-* **Java / Spring Boot:** Core application development framework.
-* **Spring Cloud Netflix Eureka:** Service discovery registry for dynamic microservices communication.
-* **Spring Cloud API Gateway:** Single entry point handling routing, filtering, and security.
-* **Spring Security & JWT:** Stateless authentication and authorization across services.
-* **MySQL & JPA/Hibernate:** Relational database management for each individual microservice.
-* **Apache Kafka / OpenFeign:** Synchronous/Asynchronous inter-service communication.
-* **AWS S3:** Cloud storage integration for product images and media assets.
-* **Stripe API:** Secure payment processing gateway.
-* **Docker & Docker Compose:** Containerization for rapid infrastructure deployment and environment consistency.
-* **Kubernetes (K8s):** Container orchestration for auto-scaling, self-healing, and managing microservices deployments.
-* **GitHub Actions & Docker Hub:** Automated CI/CD pipelines for cloud builds and image registry.
-* **ELK Stack (Elasticsearch, Logstash, Kibana):** Centralized logging pipeline and real-time visual dashboards.
-* **Zipkin & Micrometer:** Distributed tracing to track and monitor request latency across all microservices.
+---
 
-## 🏗️ Microservices Ecosystem
+## 🚀 Quick Start
 
-### 💻 Core Business Services
-* **`eureka-server`** - Acts as the service registry where all microservices register themselves dynamically.
-* **`api-gateway`** - The entry point for all client requests; handles routing and intercepts requests for JWT validation.
-* **`authservice`** - Manages user registration, login, and generates secure JWT tokens.
-* **`product-service`** - Manages product catalogs, categories, brands, and integrates with AWS S3 for media storage.
-* **`cart-service`** - Handles user shopping cart operations (adding/updating items).
-* **`order-service`** - Manages checkout logic, order placement, and communicates with the cart service via OpenFeign.
-* **`payment-service`** - Integrates with Stripe to handle secure online transactions and order status updates.
+### Prerequisites
+- Docker Desktop
 
-### 🐳 Infrastructure & Observability (Dockerized)
-* **`elasticsearch` (Port 9200)** - The high-performance search engine and database where all microservice logs are stored.
-* **`logstash` (Port 5000)** - The data processing pipeline that catches logs from Spring Boot and feeds them into Elasticsearch.
-* **`kibana` (Port 5601)** - The interactive UI dashboard used to search, view, and analyze the aggregated logs.
-* **`zipkin` (Port 9411)** - The tracing server that visualizes exactly how long a request took as it hopped between different microservices.
+### Run the project
 
-### ☸️ Kubernetes Orchestration
-The entire application is orchestrated using Kubernetes, making it cloud-agnostic and highly available.
-* **Deployments:** Manages stateless pods ensuring desired replication and self-healing.
-* **Services:** Utilizes `ClusterIP` for secure internal microservice-to-microservice communication, and `LoadBalancer` to expose the API Gateway and Eureka Server to external traffic.
-* **Infrastructure as Code:** All infrastructure declarations are stored in the `/k8s` directory for reproducible builds.
+```bash
+git clone https://github.com/aliazamx21/microservices-ecommerce-platform.git
+cd microservices-ecommerce-platform
+docker-compose up -d
+```
 
-## ⚙️ CI/CD Pipeline (Automated Deployments)
-This project utilizes **GitHub Actions** for continuous integration and delivery.
-* Every push to the `main` branch triggers an isolated Ubuntu cloud runner.
-* The runner sets up JDK 17, compiles the microservices via Maven, and packages them into Docker images.
-* The finalized images are automatically securely authenticated and pushed to a public **Docker Hub** registry, ready for immediate deployment to AWS or any cloud provider.
+This starts all microservices, databases, Kafka, and the observability stack.
 
-## 🔄 System Request & Architecture Flow (Interview Guide)
-*When an interviewer asks about your system design flow, explain it through this end-to-end user journey:*
+---
 
-1. **Authentication:**
-   * The user sends credentials to `authservice` via the `api-gateway`.
-   * Upon successful verification, a JWT token is issued back to the client.
+## 🛠 Tech Stack
 
-2. **Routing & Gateway Filtering:**
-   * Subsequent requests from the client carry the JWT token in the header and hit the API Gateway.
-   * The Gateway's custom `AuthenticationFilter` validates the JWT token before routing the request to downstream services.
+| Category | Technologies |
+|-----------|--------------|
+| Backend | Java 17, Spring Boot, Spring Cloud Gateway, Eureka |
+| Security | Spring Security, JWT |
+| Database | MySQL, Spring Data JPA |
+| Messaging | Apache Kafka, OpenFeign |
+| Cloud | AWS (EKS, RDS, S3, VPC), Terraform |
+| DevOps | Docker, Docker Compose, Kubernetes, GitHub Actions |
+| Observability | ELK Stack, Zipkin, Micrometer |
 
-3. **Service Discovery:**
-   * The API Gateway uses Eureka Server to look up the dynamic network locations of internal microservices (e.g., `product-service`, `order-service`) rather than hardcoding IP addresses.
+---
 
-4. **Checkout & Inter-Service Communication:**
-   * When a user checks out, the `order-service` triggers a call to the `cart-service` (using OpenFeign) to fetch the user's current cart items.
-   * Once items are retrieved, an order is created with a PENDING status.
+## 🏗 Microservices
 
-5. **Payment Processing:**
-   * The `payment-service` takes the order details, communicates with the Stripe API to process the payment securely, and updates the final order status upon success.
+| Service | Responsibility |
+|----------|----------------|
+| `api-gateway` | API Gateway & request routing |
+| `eureka-server` | Service discovery |
+| `authservice` | Authentication & JWT |
+| `product-service` | Product & category management |
+| `cart-service` | Shopping cart operations |
+| `order-service` | Order processing |
+| `payment-service` | Stripe payment integration |
 
-6. **Observability (Logging & Tracing):**
-   * As the user's request travels through the Gateway and downstream services, Micrometer & Zipkin attach a unique "Trace ID" to the request, allowing developers to visually track bottlenecks.
-   * Simultaneously, all services asynchronously stream their structured logs via TCP to Logstash, which indexes them in Elasticsearch for real-time monitoring and debugging in Kibana.
+---
 
-## 📂 Database Design
-An ER diagram (`ER_Diagram.mwb`) is included in the repository outlining the relational database schemas for users, products, carts, orders, and payments following a **Database-per-Service** microservices architecture pattern.
+## 🔄 Architecture Flow
+
+1. User authenticates and receives a JWT.
+2. Requests are routed through the API Gateway.
+3. Eureka performs service discovery.
+4. Order Service communicates with Cart Service using OpenFeign.
+5. Payment events are processed asynchronously through Kafka.
+6. Zipkin traces requests while ELK centralizes application logs.
+
+---
+
+## ☁️ Deployment
+
+- **Docker Compose** for local development
+- **Kubernetes** manifests in `/k8s`
+- **Terraform** infrastructure in `/terraform`
+- **GitHub Actions** for automated build and deployment
+
+---
+
+## 📊 Observability
+
+| Tool | Purpose |
+|------|---------|
+| Zipkin | Distributed tracing |
+| Elasticsearch | Log storage |
+| Logstash | Log processing |
+| Kibana | Log visualization |
+
+---
+
+## 📂 Database
+
+The repository includes an **ER diagram** (`ER_Diagram.mwb`) following the **Database-per-Service** architecture.

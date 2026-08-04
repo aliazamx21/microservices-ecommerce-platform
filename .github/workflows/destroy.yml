@@ -1,14 +1,14 @@
 name: Destroy Infrastructure
 
 on:
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+  workflow_dispatch: # Allows manual trigger ONLY
 
 jobs:
   destroy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -18,30 +18,20 @@ jobs:
           aws-region: ap-south-1
 
       - name: Update kubeconfig for EKS
-        run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
+        run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster || true
 
-      - name: Delete Microservices from EKS
-        run: kubectl delete -f k8s/ --ignore-not-found=true
-
-      - name: Uninstall Kafka and Prometheus via Helm
+      - name: Delete Kubernetes Resources
         run: |
+          kubectl delete -f k8s/ --ignore-not-found=true || true
+          kubectl delete -f devops-tools/ --ignore-not-found=true || true
           helm uninstall kafka --ignore-not-found || true
           helm uninstall monitoring --namespace monitoring --ignore-not-found || true
-          kubectl delete namespace monitoring --ignore-not-found || true
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Re-update kubeconfig for Terraform
-        run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
-
       - name: Terraform Destroy
         run: |
-          export KUBE_CONFIG_PATH=~/.kube/config
-          terraform -chdir=terraform init
-          
-          # Remove Helm releases from state since they are already uninstalled
-          terraform -chdir=terraform state rm helm_release.kafka || true
-          terraform -chdir=terraform state rm helm_release.prometheus || true
-          
-          terraform -chdir=terraform destroy -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
+          cd terraform
+          terraform init
+          terraform destroy -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"

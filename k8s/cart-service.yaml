@@ -18,8 +18,6 @@ spec:
           ports:
             - containerPort: 8083
           env:
-            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
-              value: "http://eureka-server:8761/eureka/"
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: "http://zipkin:9411/api/v2/spans"
             - name: SPRING_DATASOURCE_URL

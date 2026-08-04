@@ -137,6 +137,7 @@ resource "aws_iam_role_policy_attachment" "nodes_AmazonEC2ContainerRegistryReadO
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+# --- UPDATED NODE GROUP ---
 resource "aws_eks_node_group" "nodes" {
   cluster_name    = aws_eks_cluster.ecommerce.name
   node_group_name = "ecommerce-node-group"
@@ -149,7 +150,8 @@ resource "aws_eks_node_group" "nodes" {
     min_size     = 1
   }
 
-  instance_types = ["t3.micro"]
+  # CHANGED FROM t3.micro TO t3.large TO PROVIDE ENOUGH RAM FOR ELK, SONARQUBE & KAFKA
+  instance_types = ["t3.large"]
 
   depends_on = [
     aws_iam_role_policy_attachment.nodes_AmazonEKSWorkerNodePolicy,
@@ -163,6 +165,7 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
   subnet_ids = [aws_subnet.public_subnet_1.id, aws_subnet.public_subnet_2.id]
 }
 
+# --- UPDATED DATABASE SECURITY GROUP ---
 resource "aws_security_group" "rds_sg" {
   name   = "ecommerce-rds-sg"
   vpc_id = aws_vpc.ecommerce_vpc.id
@@ -171,7 +174,8 @@ resource "aws_security_group" "rds_sg" {
     from_port   = 3306
     to_port     = 3306
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    # CHANGED: ALLOWS TRAFFIC ONLY FROM INSIDE YOUR VPC (EKS NODES)
+    cidr_blocks = [aws_vpc.ecommerce_vpc.cidr_block]
   }
 
   egress {
@@ -182,6 +186,7 @@ resource "aws_security_group" "rds_sg" {
   }
 }
 
+# --- UPDATED DATABASE INSTANCE ---
 resource "aws_db_instance" "ecommerce_db" {
   identifier             = "ecommerce-db"
   engine                 = "mysql"
@@ -192,7 +197,8 @@ resource "aws_db_instance" "ecommerce_db" {
   username               = "admin"
   password               = var.db_password
   skip_final_snapshot    = true
-  publicly_accessible    = true
+  # CHANGED TO FALSE FOR VPC SECURITY
+  publicly_accessible    = false
   db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
 }
@@ -204,4 +210,14 @@ resource "random_id" "bucket_suffix" {
 resource "aws_s3_bucket" "product_images" {
   bucket        = "ecommerce-product-images-${random_id.bucket_suffix.hex}"
   force_destroy = true
+}
+# --- ADDED OUTPUTS FOR CONVENIENCE ---
+output "rds_endpoint" {
+  description = "The endpoint of the RDS MySQL database"
+  value       = aws_db_instance.ecommerce_db.endpoint
+}
+
+output "s3_bucket_name" {
+  description = "The name of the S3 bucket for product images"
+  value       = aws_s3_bucket.product_images.bucket
 }
