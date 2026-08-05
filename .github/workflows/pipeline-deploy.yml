@@ -81,7 +81,7 @@ jobs:
 
       - name: Install or Upgrade Kafka (Zero Manual Setup)
         run: |
-          helm upgrade --install kafka oci://registry-1.docker.io/bitnamicharts/kafka --set controller.persistence.enabled=false --wait || true
+          helm upgrade --install kafka oci://registry-1.docker.io/bitnamicharts/kafka --set controller.persistence.enabled=false --set broker.persistence.enabled=false --set persistence.enabled=false --wait || true
 
       - name: Deploy to EKS
         run: |
