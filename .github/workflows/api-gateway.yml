@@ -3,6 +3,7 @@ on:
   push:
     branches: [ main ]
     paths: [ 'api-gateway/**' ]
+  workflow_dispatch:
 jobs:
   deploy:
     uses: ./.github/workflows/pipeline-deploy.yml

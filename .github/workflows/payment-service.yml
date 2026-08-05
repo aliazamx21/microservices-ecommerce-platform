@@ -3,6 +3,7 @@ on:
   push:
     branches: [ main ]
     paths: [ 'payment-service/**' ]
+  workflow_dispatch:
 jobs:
   deploy:
     uses: ./.github/workflows/pipeline-deploy.yml
