@@ -1,4 +1,4 @@
-name: Destroy Infrastructure
+name: Destroy Infrastructure and Images
 
 on:
   workflow_dispatch: # Allows manual trigger ONLY
@@ -10,6 +10,34 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # --- 1. DELETE DOCKER HUB IMAGES ---
+      - name: Delete all repositories from Docker Hub
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASS: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo "Authenticating with Docker Hub..."
+          TOKEN=$(curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"username\": \"$DOCKER_USER\", \"password\": \"$DOCKER_PASS\"}" \
+            https://hub.docker.com/v2/users/login/ | jq -r .token)
+          
+          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+            echo "Failed to authenticate with Docker Hub."
+            exit 1
+          fi
+
+          echo "Fetching all repositories for user $DOCKER_USER..."
+          REPOS=$(curl -s -H "Authorization: JWT $TOKEN" \
+            "https://hub.docker.com/v2/repositories/${DOCKER_USER}/?page_size=100" | jq -r '.results[].name')
+
+          for REPO in $REPOS; do
+            echo "Deleting repository: $DOCKER_USER/$REPO..."
+            curl -s -X DELETE -H "Authorization: JWT $TOKEN" \
+              "https://hub.docker.com/v2/repositories/$DOCKER_USER/$REPO/"
+          done
+          echo "Docker Hub cleanup complete."
+
+      # --- 2. DELETE KUBERNETES RESOURCES ---
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -26,7 +54,10 @@ jobs:
           kubectl delete -f devops-tools/ --ignore-not-found=true || true
           helm uninstall kafka --ignore-not-found || true
           helm uninstall monitoring --namespace monitoring --ignore-not-found || true
+          # Note: Added a sleep to give AWS time to detach LoadBalancers/Volumes before TF destroys the VPC
+          sleep 60 
 
+      # --- 3. DESTROY AWS INFRASTRUCTURE ---
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
