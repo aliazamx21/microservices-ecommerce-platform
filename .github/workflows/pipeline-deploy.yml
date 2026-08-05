@@ -7,6 +7,20 @@ on:
         description: "The name of the microservice folder"
         required: true
         type: string
+    # We must explicitly require these secrets so this reusable workflow can see them
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      DB_PASSWORD:
+        required: true
+      STRIPE_SECRET_KEY:
+        required: true
 
 jobs:
   build-and-deploy:
