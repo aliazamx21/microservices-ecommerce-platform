@@ -13,8 +13,9 @@ jobs:
       # --- 1. DELETE DOCKER HUB IMAGES ---
       - name: Delete all repositories from Docker Hub
         env:
-          DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASS: ${{ secrets.DOCKER_PASSWORD }}
+          # CORRECTED: Matching the exact names from your GitHub Secrets
+          DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASS: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           echo "Authenticating with Docker Hub..."
           TOKEN=$(curl -s -X POST -H "Content-Type: application/json" \
