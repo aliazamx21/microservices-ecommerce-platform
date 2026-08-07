@@ -2,6 +2,7 @@ package com.authservice.service;
 
 import java.util.Date;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.auth0.jwt.JWT;
@@ -10,7 +11,10 @@ import com.auth0.jwt.algorithms.Algorithm;
 @Service
 public class JwtService {
 
-	private static final String SECRET_KEY = "my-super-secret-key";
+	// SECURE: Injected from application.properties or environment variables
+	@Value("${jwt.secret}")
+	private String secretKey;
+
 	private static final long EXPIRATION_TIME = 86400000; // 1 day
 
 	public String generateToken(String username, String role) {
@@ -19,14 +23,13 @@ public class JwtService {
 				.withClaim("role", role)
 				.withIssuedAt(new Date())
 				.withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-				.sign(Algorithm.HMAC256(SECRET_KEY));
+				.sign(Algorithm.HMAC256(secretKey));
 	}
 
 	public String validateTokenAndRetrieveSubject(String token) {
-		return JWT.require(Algorithm.HMAC256(SECRET_KEY))
+		return JWT.require(Algorithm.HMAC256(secretKey))
 				.build()
 				.verify(token)
 				.getSubject();
 	}
-
 }

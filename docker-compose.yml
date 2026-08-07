@@ -34,7 +34,7 @@ services:
         - "9092:9092"
 
     # -----------------------------------
-    # 2. YOUR MICROSERVICES (Pulled from Docker Hub)
+    # 2. YOUR MICROSERVICES
     # -----------------------------------
     api-gateway:
       image: aliaz333/api-gateway:latest
@@ -43,6 +43,8 @@ services:
         - "6969:6969"
       environment:
         - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+        # ADDED: Match production K8s variables
+        - JWT_SECRET=my-super-secret-local-dev-key-12345
       depends_on:
         - zipkin
 
@@ -53,6 +55,8 @@ services:
         - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/auth_db?createDatabaseIfNotExist=true
         - SPRING_DATASOURCE_USERNAME=root
         - SPRING_DATASOURCE_PASSWORD=test
+        # ADDED: Match production K8s variables
+        - JWT_SECRET=my-super-secret-local-dev-key-12345
       depends_on:
         - mysql
 
@@ -78,6 +82,20 @@ services:
         - mysql
         - kafka
 
+    payment-service:
+      image: aliaz333/payment-service:latest
+      container_name: payment-service
+      environment:
+        - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/payment_db?createDatabaseIfNotExist=true
+        - SPRING_DATASOURCE_USERNAME=root
+        - SPRING_DATASOURCE_PASSWORD=test
+        - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+        # ADDED: Stripe keys for local testing
+        - STRIPE_SECRET_KEY=sk_test_mock_key_for_local_dev
+      depends_on:
+        - mysql
+        - kafka
+
     product-service:
       image: aliaz333/product-service:latest
       container_name: product-service
@@ -85,5 +103,8 @@ services:
         - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/product_db?createDatabaseIfNotExist=true
         - SPRING_DATASOURCE_USERNAME=root
         - SPRING_DATASOURCE_PASSWORD=test
+        # ADDED: AWS mocks for local testing
+        - AWS_ACCESS_KEY_ID=mock_access_key
+        - AWS_SECRET_ACCESS_KEY=mock_secret_key
       depends_on:
         - mysql

@@ -2,6 +2,8 @@ package com.api_gateway.filter;
 
 import com.api_gateway.util.JwtUtil;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -17,6 +19,9 @@ import java.util.List;
 
 @Component
 public class AuthenticationFilter implements GlobalFilter, Ordered {
+
+    // ADDED: Proper Enterprise Logging
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationFilter.class);
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -45,6 +50,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
             // 3. Validate presence and format of the header
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                logger.warn("Missing or invalid Authorization header for path: {}", path);
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
@@ -69,7 +75,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
                 return chain.filter(exchange.mutate().request(mutatedRequest).build());
 
             } catch (Exception e) {
-                System.out.println("Invalid JWT token: " + e.getMessage());
+                logger.error("Invalid JWT token detected: {}", e.getMessage());
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }

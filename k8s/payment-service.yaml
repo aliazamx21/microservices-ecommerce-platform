@@ -20,8 +20,13 @@ spec:
           env:
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: "http://zipkin:9411/api/v2/spans"
+            - name: DB_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: infra-config
+                  key: DB_ENDPOINT
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:mysql://ecommerce-db.c7wayskcmof7.ap-south-1.rds.amazonaws.com:3306/payment_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+              value: "jdbc:mysql://$(DB_ENDPOINT)/payment_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
             - name: SPRING_DATASOURCE_USERNAME
               value: "admin"
             - name: SPRING_DATASOURCE_PASSWORD

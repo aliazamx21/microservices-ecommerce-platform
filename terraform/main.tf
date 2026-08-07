@@ -16,9 +16,12 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "ecommerce-tfstate-aliaz"
-    key    = "state/terraform.tfstate"
-    region = "ap-south-1"
+    bucket         = "ecommerce-tfstate-aliaz"
+    key            = "state/terraform.tfstate"
+    region         = "ap-south-1"
+    # ADDED: State locking and encryption for Enterprise-grade Terraform
+    dynamodb_table = "terraform-state-lock"
+    encrypt        = true
   }
 }
 

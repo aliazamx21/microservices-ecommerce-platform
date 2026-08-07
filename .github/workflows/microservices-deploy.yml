@@ -1,0 +1,47 @@
+name: Microservices Smart Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # 1. DETECT CHANGES
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      # This outputs a JSON array of the changed services (e.g., '["cart-service", "authservice"]')
+      changed_services: ${{ steps.filter.outputs.changes }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check for modified files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # If a folder changes, its name gets added to the JSON array
+          filters: |
+            api-gateway: 'api-gateway/**'
+            authservice: 'authservice/**'
+            cart-service: 'cart-service/**'
+            order-service: 'order-service/**'
+            payment-service: 'payment-service/**'
+            product-service: 'product-service/**'
+
+  # 2. DYNAMIC DEPLOYMENT (THE LOOP)
+  deploy:
+    needs: detect-changes
+    # Only run this job if the array is NOT empty (meaning at least one service changed)
+    if: ${{ needs.detect-changes.outputs.changed_services != '[]' && needs.detect-changes.outputs.changed_services != '' }}
+
+    # This matrix acts like a "for loop". It runs the reusable workflow once for every changed service.
+    strategy:
+      fail-fast: false # If one service fails to build, don't cancel the others
+      matrix:
+        service_name: ${{ fromJSON(needs.detect-changes.outputs.changed_services) }}
+
+    uses: ./.github/workflows/pipeline-deploy.yml
+    with:
+      service_name: ${{ matrix.service_name }}
+    secrets: inherit
