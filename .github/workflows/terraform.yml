@@ -1,10 +1,10 @@
-name: Infrastructure Provisioning (Terraform)
+name: 1. Infrastructure Provisioning
 
 on:
   push:
     branches: [ main ]
     paths: [ 'terraform/**' ]
-  workflow_dispatch: # Allows you to run this manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   terraform-apply:
@@ -23,7 +23,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init & Apply
+      - name: Terraform Init & Apply (Skips if already created)
         run: |
           cd terraform
           terraform init
@@ -32,21 +32,17 @@ jobs:
       - name: Update kubeconfig for EKS
         run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
 
-      # --- 1. THE CONFIGMAP (Dynamic URLs) ---
       - name: Inject Infrastructure Config to Kubernetes
         run: |
           cd terraform
-          # 1. Grab the dynamic outputs from Terraform
           RDS_ENDPOINT=$(terraform output -raw rds_endpoint)
           S3_BUCKET=$(terraform output -raw s3_bucket_name)
           
-          # 2. Create or update a ConfigMap in EKS with these exact values
           kubectl create configmap infra-config \
             --from-literal=DB_ENDPOINT=$RDS_ENDPOINT \
             --from-literal=S3_BUCKET_NAME=$S3_BUCKET \
             -o yaml --dry-run=client | kubectl apply -f -
 
-      # --- 2. THE SECRETS VAULT (Passwords & API Keys) ---
       - name: Inject GitHub Secrets to Kubernetes
         run: |
           kubectl create secret generic ecommerce-secrets \
@@ -54,6 +50,7 @@ jobs:
             --from-literal=STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
             --from-literal=AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
             --from-literal=AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             --dry-run=client -o yaml | kubectl apply -f -
           
           kubectl create secret docker-registry dockerhub-secret \

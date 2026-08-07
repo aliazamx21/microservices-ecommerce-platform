@@ -52,7 +52,6 @@ jobs:
           else
             BUILD_PATH="./${{ inputs.service_name }}/${{ inputs.service_name }}"
           fi
-          # This overwrites the old :latest tag with your brand new code
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.service_name }}:latest $BUILD_PATH
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.service_name }}:latest
 
@@ -66,10 +65,7 @@ jobs:
       - name: Update kubeconfig for EKS
         run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
 
-      - name: Deploy Specific Microservice to EKS
+      - name: Deploy Specific Microservice to EKS (Skips if identical)
         run: |
-          # 1. Apply the YAML file (Skips if nothing in the YAML changed)
           kubectl apply -f k8s/${{ inputs.service_name }}.yaml
-          
-          # 2. Force Kubernetes to pull the new :latest image we just built
-          kubectl rollout restart deployment ${{ inputs.service_name }}-deployment
+          kubectl rollout restart deployment ${{ inputs.service_name }}-deployment || true

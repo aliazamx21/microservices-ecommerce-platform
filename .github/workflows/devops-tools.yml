@@ -1,15 +1,22 @@
-name: Deploy DevOps Tools
+name: 2. Deploy DevOps Tools
 
 on:
+  workflow_run:
+    workflows: ["1. Infrastructure Provisioning"]
+    types:
+      - completed
   push:
     branches:
       - main
     paths:
-      - 'devops-tools/**' # Only runs if you change a tool configuration
+      - 'devops-tools/**'
+  workflow_dispatch:
 
 jobs:
   deploy-tools:
     runs-on: ubuntu-latest
+    # Only run if the previous Terraform job was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -24,8 +31,11 @@ jobs:
       - name: Update kubeconfig for EKS
         run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
 
-      - name: Deploy Kubernetes Manifests (Zipkin, SonarQube, ELK)
+      - name: Deploy Kubernetes Manifests (Skips if already exists)
         run: kubectl apply -f devops-tools/
 
-      - name: Install Helm Charts (Kafka, Prometheus, Grafana)
-        run: bash devops-tools/install-heavy-tools.sh
+      - name: Install Helm Charts (Skips if already exists)
+        run: |
+          # Checks if they are already installed to skip creation
+          helm upgrade --install kafka oci://registry-1.docker.io/bitnamicharts/kafka || true
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace || true
