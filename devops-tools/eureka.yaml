@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: eureka
-          image: springcloud/eureka-server:latest
+          image: eclipse-temurin:17-jre
           ports:
             - containerPort: 8761
 ---
