@@ -71,30 +71,6 @@ public class ProductController {
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
-    @PostMapping("/brand/create")
-    public ResponseEntity<String> createBrand(
-            @RequestHeader(value = "X-Logged-In-User", required = false) String username,
-            @RequestHeader(value = "X-User-Role", required = false) String role,
-            @RequestParam("name") String brandName
-    ) {
-        if (role == null || !role.contains("ADMIN")) {
-            logger.warn("Unauthorized brand creation attempt by user: {}", username);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden: Only administrators can create brands.");
-        }
-
-        try {
-            CategoryDto categoryDto = new CategoryDto();
-            categoryDto.setName(brandName);
-            CategoryDto createdCategory = categoryService.save(categoryDto);
-
-            logger.info("Admin {} successfully created brand/category: {}", username, brandName);
-            return ResponseEntity.status(HttpStatus.CREATED).body("Brand created successfully: " + brandName);
-        } catch (Exception e) {
-            logger.error("Failed to create brand: {}", e.getMessage());
-            return ResponseEntity.internalServerError().body("Failed to create brand: " + e.getMessage());
-        }
-    }
-
     @PostMapping("/upload")
     public ResponseEntity<String> uploadProductImage(
             @RequestHeader(value = "X-Logged-In-User", required = false) String username,
