@@ -5,9 +5,14 @@
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
         <destination>${LOGSTASH_URL:-logstash:5000}</destination>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+        <!-- Prevents startup failure and crash loops if logstash container is absent -->
+        <connectionSource class="net.logstash.logback.appender.destination.BootstrapDefaultConnectionSource">
+            <connectTimeout>1000</connectTimeout>
+        </connectionSource>
     </appender>
 
     <root level="INFO">
         <appender-ref ref="LOGSTASH" />
+        <appender-ref ref="CONSOLE" />
     </root>
 </configuration>
