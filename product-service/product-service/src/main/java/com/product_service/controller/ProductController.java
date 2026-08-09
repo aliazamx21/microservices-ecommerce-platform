@@ -23,7 +23,6 @@ public class ProductController {
 
     private static final Logger logger = LoggerFactory.getLogger(ProductController.class);
 
-    // BEST PRACTICE: Always declare injected dependencies as 'final'
     private final CategoryService categoryService;
     private final ProductService productService;
     private final S3Service s3Service;
@@ -47,7 +46,7 @@ public class ProductController {
         }
 
         response.setMessage("No categories data found");
-        response.setStatus(404); // Changed from 500 (Server Error) to 404 (Not Found)
+        response.setStatus(404);
         response.setData(null);
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
@@ -67,7 +66,7 @@ public class ProductController {
         }
 
         response.setMessage("No products found for the given keyword");
-        response.setStatus(404); // Changed from 500 to 404
+        response.setStatus(404);
         response.setData(null);
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
@@ -84,7 +83,10 @@ public class ProductController {
         }
 
         try {
-            CategoryDto createdCategory = categoryService.save(new CategoryDto(brandName));
+            CategoryDto categoryDto = new CategoryDto();
+            categoryDto.setName(brandName);
+            CategoryDto createdCategory = categoryService.save(categoryDto);
+
             logger.info("Admin {} successfully created brand/category: {}", username, brandName);
             return ResponseEntity.status(HttpStatus.CREATED).body("Brand created successfully: " + brandName);
         } catch (Exception e) {
@@ -100,7 +102,6 @@ public class ProductController {
             @RequestParam("file") MultipartFile[] files,
             @RequestParam("brandId") int brandId
     ){
-        // SECURITY WIN: Only allow ADMIN to upload product images to S3 bucket
         if (role == null || !role.contains("ADMIN")) {
             logger.warn("Unauthorized upload attempt by user: {}", username);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden: Only administrators can upload product images.");
@@ -121,7 +122,6 @@ public class ProductController {
             logger.error("Failed to upload image to S3: {}", e.getMessage());
             return ResponseEntity.internalServerError().body("Failed to upload image: " + e.getMessage());
         } catch (RuntimeException e) {
-            // Catches the "Brand not found" exception from the service layer
             logger.error("Upload failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         }
