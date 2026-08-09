@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: spring-boot-admin
-          image: codecentric/spring-boot-admin-server:latest
+          image: codecentric/spring-boot-admin-server:2.X
           ports:
             - containerPort: 8080
 ---

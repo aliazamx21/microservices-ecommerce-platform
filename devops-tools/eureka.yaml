@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: eureka
-          image: netifi/eureka:latest
+          image: springcloud/eureka:latest
           ports:
             - containerPort: 8761
 ---
