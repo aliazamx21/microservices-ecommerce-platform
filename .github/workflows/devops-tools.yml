@@ -31,11 +31,5 @@ jobs:
       - name: Update kubeconfig for EKS
         run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
 
-      - name: Deploy Kubernetes Manifests (Skips if already exists)
+      - name: Deploy All DevOps Tools Manifests
         run: kubectl apply -f devops-tools/
-
-      - name: Install Helm Charts (Skips if already exists)
-        run: |
-          # Checks if they are already installed to skip creation
-          helm upgrade --install kafka oci://registry-1.docker.io/bitnamicharts/kafka || true
-          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace || true
