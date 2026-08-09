@@ -7,6 +7,13 @@ on:
       - completed
   push:
     branches: [ main ]
+    paths:
+      - 'api-gateway/**'
+      - 'authservice/**'
+      - 'cart-service/**'
+      - 'order-service/**'
+      - 'payment-service/**'
+      - 'product-service/**'
   workflow_dispatch:
 
 jobs:
