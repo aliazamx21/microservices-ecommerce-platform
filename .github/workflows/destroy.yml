@@ -10,6 +10,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # --- 1. DELETE ONLY E-COMMERCE DOCKER REPO ---
       - name: Delete E-Commerce Docker Repository
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -30,6 +31,7 @@ jobs:
             "https://hub.docker.com/v2/repositories/${DOCKER_USER}/ecommerce-platform/"
           echo "Docker Hub e-commerce cleanup complete."
 
+      # --- 2. DELETE KUBERNETES RESOURCES & AWS ENIs ---
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -40,7 +42,7 @@ jobs:
       - name: Update kubeconfig for EKS
         run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster || true
 
-      - name: Delete Kubernetes Resources & Force Release AWS Dependencies
+      - name: Force Cleanup Kubernetes & Lingering AWS ENIs
         run: |
           echo "Deleting K8s manifests..."
           kubectl delete -f k8s/ --ignore-not-found=true || true
@@ -53,9 +55,31 @@ jobs:
           echo "Cleaning up lingering AWS LoadBalancers..."
           kubectl delete services --all --all-namespaces --field-selector spec.type=LoadBalancer || true
 
+          echo "Waiting 60 seconds for cluster components to terminate..."
+          sleep 60
+
+          echo "Forcibly detaching and deleting any leftover AWS ENIs in the VPC..."
+          VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=ecommerce-vpc" --query "Vpcs[0].VpcId" --output text)
+          if [ "$VPC_ID" != "None" ] && [ -n "$VPC_ID" ]; then
+            echo "Found VPC ID: $VPC_ID. Searching for attached ENIs..."
+            ENIS=$(aws ec2 describe-network-interfaces --filters "Name=vpc-id,Values=$VPC_ID" --query "NetworkInterfaces[*].NetworkInterfaceId" --output text)
+            for ENI in $ENIS; do
+              echo "Checking ENI: $ENI"
+              ATTACHMENT=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI --query "NetworkInterfaces[0].Attachment.AttachmentId" --output text)
+              if [ "$ATTACHMENT" != "None" ] && [ -n "$ATTACHMENT" ]; then
+                echo "Detaching ENI $ENI..."
+                aws ec2 detach-network-interface --attachment-id $ATTACHMENT --force || true
+                sleep 10
+              fi
+              echo "Deleting ENI $ENI..."
+              aws ec2 delete-network-interface --network-interface-id $ENI || true
+            done
+          fi
+
           echo "Waiting 5 minutes for AWS to fully release public IPs and ENIs..."
           sleep 300 
 
+      # --- 3. DESTROY AWS INFRASTRUCTURE ---
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
