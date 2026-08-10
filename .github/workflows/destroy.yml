@@ -1,7 +1,7 @@
 name: Destroy Infrastructure and Images
 
 on:
-  workflow_dispatch: # Allows manual trigger ONLY
+  workflow_dispatch:
 
 jobs:
   destroy:
@@ -10,8 +10,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- 1. DELETE DOCKER HUB IMAGES ---
-      - name: Delete all repositories from Docker Hub
+      - name: Delete E-Commerce Docker Repository
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_PASS: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -26,18 +25,11 @@ jobs:
             exit 1
           fi
 
-          echo "Fetching all repositories for user $DOCKER_USER..."
-          REPOS=$(curl -s -H "Authorization: JWT $TOKEN" \
-            "https://hub.docker.com/v2/repositories/${DOCKER_USER}/?page_size=100" | jq -r '.results[].name')
+          echo "Deleting only the ecommerce-platform repository..."
+          curl -s -X DELETE -H "Authorization: JWT $TOKEN" \
+            "https://hub.docker.com/v2/repositories/${DOCKER_USER}/ecommerce-platform/"
+          echo "Docker Hub e-commerce cleanup complete."
 
-          for REPO in $REPOS; do
-            echo "Deleting repository: $DOCKER_USER/$REPO..."
-            curl -s -X DELETE -H "Authorization: JWT $TOKEN" \
-              "https://hub.docker.com/v2/repositories/$DOCKER_USER/$REPO/"
-          done
-          echo "Docker Hub cleanup complete."
-
-      # --- 2. DELETE KUBERNETES RESOURCES ---
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -58,13 +50,12 @@ jobs:
           helm uninstall kafka --ignore-not-found || true
           helm uninstall monitoring --namespace monitoring --ignore-not-found || true
 
-          echo "Cleaning up lingering AWS LoadBalancers created by Services..."
+          echo "Cleaning up lingering AWS LoadBalancers..."
           kubectl delete services --all --all-namespaces --field-selector spec.type=LoadBalancer || true
 
-          echo "Waiting 5 minutes for AWS to fully release public IPs, ENIs, and Internet Gateway attachments..."
+          echo "Waiting 5 minutes for AWS to fully release public IPs and ENIs..."
           sleep 300 
 
-      # --- 3. DESTROY AWS INFRASTRUCTURE ---
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 

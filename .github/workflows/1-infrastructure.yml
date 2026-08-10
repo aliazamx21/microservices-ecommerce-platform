@@ -23,7 +23,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init & Apply (Skips if already created)
+      - name: Terraform Init & Apply
         run: |
           cd terraform
           terraform init
@@ -35,12 +35,9 @@ jobs:
       - name: Inject Infrastructure Config to Kubernetes
         run: |
           cd terraform
-          RDS_ENDPOINT=$(terraform output -raw rds_endpoint)
-          S3_BUCKET=$(terraform output -raw s3_bucket_name)
-          
           kubectl create configmap infra-config \
-            --from-literal=DB_ENDPOINT=$RDS_ENDPOINT \
-            --from-literal=S3_BUCKET_NAME=$S3_BUCKET \
+            --from-literal=DB_ENDPOINT=$(terraform output -raw rds_endpoint) \
+            --from-literal=S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name) \
             -o yaml --dry-run=client | kubectl apply -f -
 
       - name: Inject GitHub Secrets to Kubernetes
