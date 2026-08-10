@@ -10,7 +10,40 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- 1. DELETE ONLY E-COMMERCE DOCKER REPO ---
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      # --- 1. CLEAN UP UNTRACKED KUBERNETES RESOURCES ---
+      - name: Clean up EKS Resources (LoadBalancers & Volumes)
+        run: |
+          if aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster > /dev/null 2>&1; then
+            echo "EKS Cluster found. Tearing down K8s services to release AWS network resources..."
+          
+            kubectl delete svc --all --all-namespaces --ignore-not-found=true
+            kubectl delete ingress --all --all-namespaces --ignore-not-found=true
+            kubectl delete pvc --all --all-namespaces --ignore-not-found=true
+          
+            echo "Waiting 90 seconds for AWS to detach ENIs and delete K8s ELBs..."
+            sleep 90
+          else
+            echo "EKS Cluster not found or already deleted. Skipping K8s cleanup."
+          fi
+
+      # --- 2. LET TERRAFORM DESTROY CLOUD RESOURCES ---
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Destroy
+        run: |
+          cd terraform
+          terraform init
+          terraform destroy -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
+
+      # --- 3. DELETE ONLY THE E-COMMERCE DOCKER REPOSITORY ---
       - name: Delete E-Commerce Docker Repository
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -22,69 +55,18 @@ jobs:
             https://hub.docker.com/v2/users/login/ | jq -r .token)
           
           if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
-            echo "Failed to authenticate with Docker Hub."
+            echo "Failed to authenticate with Docker Hub. Check your credentials."
             exit 1
           fi
-
-          echo "Deleting only the ecommerce-platform repository..."
-          curl -s -X DELETE -H "Authorization: JWT $TOKEN" \
-            "https://hub.docker.com/v2/repositories/${DOCKER_USER}/ecommerce-platform/"
-          echo "Docker Hub e-commerce cleanup complete."
-
-      # --- 2. DELETE KUBERNETES RESOURCES & AWS ENIs ---
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
-
-      - name: Update kubeconfig for EKS
-        run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster || true
-
-      - name: Force Cleanup Kubernetes & Lingering AWS ENIs
-        run: |
-          echo "Deleting K8s manifests..."
-          kubectl delete -f k8s/ --ignore-not-found=true || true
-          kubectl delete -f devops-tools/ --ignore-not-found=true || true
           
-          echo "Uninstalling Helm charts..."
-          helm uninstall kafka --ignore-not-found || true
-          helm uninstall monitoring --namespace monitoring --ignore-not-found || true
-
-          echo "Cleaning up lingering AWS LoadBalancers..."
-          kubectl delete services --all --all-namespaces --field-selector spec.type=LoadBalancer || true
-
-          echo "Waiting 60 seconds for cluster components to terminate..."
-          sleep 60
-
-          echo "Forcibly detaching and deleting any leftover AWS ENIs in the VPC..."
-          VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=ecommerce-vpc" --query "Vpcs[0].VpcId" --output text)
-          if [ "$VPC_ID" != "None" ] && [ -n "$VPC_ID" ]; then
-            echo "Found VPC ID: $VPC_ID. Searching for attached ENIs..."
-            ENIS=$(aws ec2 describe-network-interfaces --filters "Name=vpc-id,Values=$VPC_ID" --query "NetworkInterfaces[*].NetworkInterfaceId" --output text)
-            for ENI in $ENIS; do
-              echo "Checking ENI: $ENI"
-              ATTACHMENT=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI --query "NetworkInterfaces[0].Attachment.AttachmentId" --output text)
-              if [ "$ATTACHMENT" != "None" ] && [ -n "$ATTACHMENT" ]; then
-                echo "Detaching ENI $ENI..."
-                aws ec2 detach-network-interface --attachment-id $ATTACHMENT --force || true
-                sleep 10
-              fi
-              echo "Deleting ENI $ENI..."
-              aws ec2 delete-network-interface --network-interface-id $ENI || true
-            done
+          echo "Deleting only the 'ecommerce-platform' repository..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE -H "Authorization: JWT $TOKEN" \
+            "https://hub.docker.com/v2/repositories/${DOCKER_USER}/ecommerce-platform/")
+          
+          if [ "$RESPONSE" == "202" ] || [ "$RESPONSE" == "204" ] || [ "$RESPONSE" == "200" ]; then
+            echo "Docker Hub e-commerce cleanup complete."
+          elif [ "$RESPONSE" == "404" ]; then
+            echo "Repository already deleted or not found."
+          else
+            echo "Failed to delete repository. HTTP Status: $RESPONSE"
           fi
-
-          echo "Waiting 5 minutes for AWS to fully release public IPs and ENIs..."
-          sleep 300 
-
-      # --- 3. DESTROY AWS INFRASTRUCTURE ---
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Destroy
-        run: |
-          cd terraform
-          terraform init
-          terraform destroy -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
