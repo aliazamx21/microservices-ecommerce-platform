@@ -151,6 +151,11 @@ resource "aws_eks_node_group" "nodes" {
 
   instance_types = ["t3.large"]
 
+  # Added proper naming tags so EC2 instances display cleanly in the AWS Console
+  tags = {
+    Name = "ecommerce-worker-node"
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.nodes_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.nodes_AmazonEKS_CNI_Policy,
