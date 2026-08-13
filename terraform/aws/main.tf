@@ -12,7 +12,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "ecommerce-tfstate-aliaz" # Ensure this S3 bucket exists in AWS ap-south-1
+    bucket = "ecommerce-tfstate-aliaz"
     key    = "state/terraform.tfstate"
     region = "ap-south-1"
   }
@@ -50,7 +50,7 @@ resource "aws_subnet" "public_subnet_1" {
 
 resource "aws_subnet" "public_subnet_2" {
   vpc_id                  = aws_vpc.ecommerce_vpc.id
-  cidr_block              = "10.0.3.0/24" # UPDATED FROM 10.0.2.0/24 TO AVOID SUBNET CONFLICT
+  cidr_block              = "10.0.3.0/24"
   availability_zone       = data.aws_availability_zones.available.names[1]
   map_public_ip_on_launch = true
   tags = { Name = "ecommerce-public-2" }

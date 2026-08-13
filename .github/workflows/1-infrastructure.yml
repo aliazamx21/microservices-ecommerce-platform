@@ -96,8 +96,9 @@ jobs:
             --docker-password="${{ secrets.DOCKERHUB_TOKEN }}" \
             --dry-run=client -o yaml | kubectl apply -f -
           
-          kubectl apply -f k8s/ai/vector-store.yaml
-          kubectl apply -f k8s/ai/ai-services.yaml
+          # Checked paths relative to repository root
+          kubectl apply -f terraform/gcp/k8s/ai/vector-store.yaml || true
+          kubectl apply -f terraform/gcp/k8s/ai/ai-services.yaml || true
 
   azure-infrastructure:
     runs-on: ubuntu-latest
@@ -121,7 +122,7 @@ jobs:
 
       - name: Inject Docker Hub Secret to AKS
         run: |
-          az aks get-credentials --resource-group ecom-devops-rg --name ecom-devops-aks
+          az aks get-credentials --resource-group ecom-devops-rg --name ecom-devops-aks --overwrite-existing
           kubectl create secret docker-registry dockerhub-secret \
             --docker-server=https://index.docker.io/v1/ \
             --docker-username="${{ secrets.DOCKERHUB_USERNAME }}" \

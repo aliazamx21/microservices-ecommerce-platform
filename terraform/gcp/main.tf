@@ -7,9 +7,8 @@ terraform {
     }
   }
 
-  # Remote GCS backend to preserve Terraform state
   backend "gcs" {
-    bucket = "ecom-gcp-tfstate-aliaz" # Ensure this GCS bucket exists in GCP asia-south1
+    bucket = "ecom-gcp-tfstate-aliaz"
     prefix = "terraform/state"
   }
 }
@@ -24,22 +23,26 @@ variable "gcp_project_id" {
   description = "The ID of your Google Cloud Project"
 }
 
-# 1. Dedicated VPC for AI MCP Services
+resource "google_project_service" "compute_api" {
+  service            = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
 resource "google_compute_network" "ai_vpc" {
   name                    = "ecom-ai-mcp-network"
   auto_create_subnetworks = true
+  depends_on              = [google_project_service.compute_api]
 }
 
-# 2. GKE Autopilot Cluster
 resource "google_container_cluster" "ai_cluster" {
   name     = "ecom-ai-cluster"
   location = "asia-south1"
   network  = google_compute_network.ai_vpc.name
 
   enable_autopilot = true
+  depends_on       = [google_project_service.compute_api]
 }
 
-# --- OUTPUTS ---
 output "kubernetes_cluster_name" {
   value       = google_container_cluster.ai_cluster.name
   description = "The name of the GKE cluster"
