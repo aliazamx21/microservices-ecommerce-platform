@@ -36,7 +36,7 @@ resource "azurerm_kubernetes_cluster" "devops_aks" {
   default_node_pool {
     name       = "devopspool"
     node_count = 2
-    vm_size    = "Standard_D2s_v3"
+    vm_size    = "Standard_B2s" # UPDATED FROM Standard_D2s_v3 TO MATCH REGIONAL SUBSCRIPTION QUOTA
   }
 
   identity {

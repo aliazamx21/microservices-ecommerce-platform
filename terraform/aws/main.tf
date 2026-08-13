@@ -50,7 +50,7 @@ resource "aws_subnet" "public_subnet_1" {
 
 resource "aws_subnet" "public_subnet_2" {
   vpc_id                  = aws_vpc.ecommerce_vpc.id
-  cidr_block              = "10.0.2.0/24"
+  cidr_block              = "10.0.3.0/24" # UPDATED FROM 10.0.2.0/24 TO AVOID SUBNET CONFLICT
   availability_zone       = data.aws_availability_zones.available.names[1]
   map_public_ip_on_launch = true
   tags = { Name = "ecommerce-public-2" }
@@ -189,7 +189,7 @@ resource "aws_security_group" "rds_sg" {
 resource "aws_db_instance" "ecommerce_db" {
   identifier             = "ecommerce-db"
   engine                 = "mysql"
-  engine_version         = "8.0.35" # Specified exact minor version to avoid upgrade bugs
+  engine_version         = "8.0.35"
   instance_class         = "db.t3.micro"
   allocated_storage      = 20
   db_name                = "payment_db"
