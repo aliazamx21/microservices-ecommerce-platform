@@ -12,59 +12,46 @@ import com.authservice.repository.UserRepository;
 
 @Service
 public class AuthService {
-	
+
 	@Autowired
 	private UserRepository userRepository;
-	
+
 	@Autowired
 	private PasswordEncoder passwordEncoder;
-	
+
 	public APIResponse<String> register(UserDto userDto){
-		
-		//APIResponse object
+
 		APIResponse<String> response = new APIResponse<>();
-		
-		//check whether username exists
+
 		if(userRepository.existsByUsername(userDto.getUsername())) {
 			response.setMessage("Registration Failed");
-			response.setStatus(500);
-			response.setData("user with this username exists");
+			response.setStatus(409); // 409 Conflict (Standard REST code)
+			response.setData("User with this username already exists");
 			return response;
 		}
-		//check whether Email exists
+
 		if(userRepository.existsByEmail(userDto.getEmail())) {
 			response.setMessage("Registration Failed");
-			response.setStatus(600);
-			response.setData("Registration with this Email id Already Exists");
+			response.setStatus(409); // 409 Conflict
+			response.setData("Registration with this Email ID already exists");
 			return response;
 		}
-		//encode the passwords before saving that to the database
+
 		String encryptedPassword = passwordEncoder.encode(userDto.getPassword());
 
 		User user = new User();
 		BeanUtils.copyProperties(userDto, user);
 		user.setPassword(encryptedPassword);
 
-		// THE FIX: Check if a role was sent. If not, default to a standard user!
-		if (userDto.getRole() != null && !userDto.getRole().isEmpty()) {
-			user.setRole(userDto.getRole());
-		} else {
-			user.setRole("ROLE_USER"); // Safe default fallback
-		}
+		// SECURE: Force public registrations to be ROLE_USER.
+		// Never trust the role sent from the frontend JSON.
+		user.setRole("ROLE_USER");
 
-		User savedUser = userRepository.save(user);
-		
-		if(savedUser==null) {
-			//custom
-		}
+		userRepository.save(user);
+
 		response.setMessage("Registration Completed");
-	    response.setStatus(201);
-	    response.setData("User has been registerd");
-	    return response;
-		
-		
-		//finally save the user and return response as APIResponse
-		
+		response.setStatus(201); // 201 Created
+		response.setData("User has been registered successfully");
+		return response;
 	}
-
 }

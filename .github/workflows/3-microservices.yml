@@ -1,8 +1,8 @@
-name: 3. Microservices Smart Deploy
+name: 3-microservices-deploy
 
 on:
   workflow_run:
-    workflows: ["2. Deploy DevOps Tools"]
+    workflows: ["2-devops-tools"]
     types: [completed]
   push:
     branches: [ main ]
@@ -13,6 +13,8 @@ on:
       - 'order-service/**'
       - 'payment-service/**'
       - 'product-service/**'
+      - 'ai-mcp-client/**'
+      - 'ai-mcp-sandbox/**'
   workflow_dispatch:
 
 jobs:
@@ -25,7 +27,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Check for modified files (Skips unchanged services)
+      - name: Check for modified files
         uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -36,6 +38,8 @@ jobs:
             order-service: 'order-service/**'
             payment-service: 'payment-service/**'
             product-service: 'product-service/**'
+            ai-mcp-client: 'ai-mcp-client/**'
+            ai-mcp-sandbox: 'ai-mcp-sandbox/**'
 
   build-and-deploy:
     needs: detect-changes
@@ -68,12 +72,17 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push to Single Repository with Tags
+      - name: Build and Push Docker Image
         run: |
           SERVICE_PATH="${{ matrix.service_name }}"
           [ -f "$SERVICE_PATH/Dockerfile" ] || SERVICE_PATH="$SERVICE_PATH/$SERVICE_PATH"
           
-          IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-platform:${{ matrix.service_name }}"
+          # Handles tag naming matching your multi-cloud repository image naming structure
+          if [ "${{ matrix.service_name }}" == "ai-mcp-client" ] || [ "${{ matrix.service_name }}" == "ai-mcp-sandbox" ]; then
+            IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/ecom-platform:${{ matrix.service_name }}"
+          else
+            IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-platform:${{ matrix.service_name }}"
+          fi
           
           docker build -t "$IMAGE_TAG" "$SERVICE_PATH"
           docker push "$IMAGE_TAG"
@@ -85,8 +94,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      - name: Update kubeconfig & Deploy
+      - name: Update Kubeconfig & Deploy to EKS (Standard Microservices)
+        if: ${{ matrix.service_name != 'ai-mcp-client' && matrix.service_name != 'ai-mcp-sandbox' }}
         run: |
           aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
-          kubectl apply -f k8s/${{ matrix.service_name }}.yaml
+          kubectl apply -f k8s/microservies/${{ matrix.service_name }}.yaml
           kubectl rollout restart deployment ${{ matrix.service_name }}-deployment || true

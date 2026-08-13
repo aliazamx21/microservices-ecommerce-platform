@@ -1,17 +1,13 @@
 package com.authservice.controller;
 
-import org.springframework.security.core.Authentication;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 import com.authservice.dto.APIResponse;
 import com.authservice.dto.LoginDto;
@@ -40,16 +36,14 @@ public class AuthController {
 	@PostMapping("/register")
 	public ResponseEntity<APIResponse<String>> register(@RequestBody UserDto dto) {
 		APIResponse<String> response = authService.register(dto);
-		return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
+		return ResponseEntity.status(response.getStatus()).body(response);
 	}
 
 	@PostMapping("/login")
 	public ResponseEntity<APIResponse<String>> login(@RequestBody LoginDto dto) {
-
 		APIResponse<String> response = new APIResponse<>();
 
-		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(dto.getUsername(),
-				dto.getPassword());
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword());
 		try {
 			Authentication authenticate = authManager.authenticate(token);
 
@@ -59,22 +53,31 @@ public class AuthController {
 
 				response.setMessage("Login Successful");
 				response.setStatus(200);
-				response.setData(jwtToken); // return JWT
-				return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
+				response.setData(jwtToken);
+				return ResponseEntity.ok(response);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			// Fall through to failure response
 		}
 
-		response.setMessage("Failed");
+		response.setMessage("Authentication Failed");
 		response.setStatus(401);
-		response.setData("Un-Authorized Access");
-		return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
+		response.setData("Invalid username or password");
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
 	}
-    
+
 	@GetMapping("/get-user")
-	public User getUserByUserName(@RequestParam String username) {
+	public ResponseEntity<UserDto> getUserByUserName(@RequestParam String username) {
 		User user = repository.findByUsername(username);
-		return user;
+		if (user == null) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		}
+
+		// SECURE: Map Entity to DTO to avoid leaking the hashed password
+		UserDto safeUserDto = new UserDto();
+		BeanUtils.copyProperties(user, safeUserDto);
+		safeUserDto.setPassword(null); // Explicitly clear password field
+
+		return ResponseEntity.ok(safeUserDto);
 	}
 }
