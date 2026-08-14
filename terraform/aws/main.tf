@@ -189,7 +189,7 @@ resource "aws_security_group" "rds_sg" {
 resource "aws_db_instance" "ecommerce_db" {
   identifier             = "ecommerce-db"
   engine                 = "mysql"
-  engine_version         = "8.0.35"
+  engine_version         = "8.0"
   instance_class         = "db.t3.micro"
   allocated_storage      = 20
   db_name                = "payment_db"
