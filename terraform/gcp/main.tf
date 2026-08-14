@@ -19,23 +19,12 @@ provider "google" {
 
 variable "gcp_project_id" {
   type        = string
-}
-
-# Import/Data-source approach: Tells Terraform the API exists without trying to modify it
-data "google_project_service" "compute" {
-  project = var.gcp_project_id
-  service = "compute.googleapis.com"
-}
-
-data "google_project_service" "container" {
-  project = var.gcp_project_id
-  service = "container.googleapis.com"
+  description = "The ID of your Google Cloud Project"
 }
 
 resource "google_compute_network" "ai_vpc" {
   name                    = "ecom-ai-mcp-network"
   auto_create_subnetworks = true
-  depends_on              = [data.google_project_service.compute]
 }
 
 resource "google_container_cluster" "ai_cluster" {
@@ -43,5 +32,14 @@ resource "google_container_cluster" "ai_cluster" {
   location         = "asia-south1"
   network          = google_compute_network.ai_vpc.name
   enable_autopilot = true
-  depends_on       = [data.google_project_service.container]
 }
+
+output "kubernetes_cluster_name" {
+  value       = google_container_cluster.ai_cluster.name
+  description = "The name of the GKE cluster"
+}
+
+output "kubernetes_cluster_location" {
+  value       = google_container_cluster.ai_cluster.location
+  description = "The region of the GKE cluster"
+}c
