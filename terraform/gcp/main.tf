@@ -23,9 +23,22 @@ variable "gcp_project_id" {
   description = "The ID of your Google Cloud Project"
 }
 
+# --- AUTOMATICALLY ENABLE REQUIRED APIS (Fixes 403 Errors) ---
+resource "google_project_service" "compute" {
+  service            = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "container" {
+  service            = "container.googleapis.com"
+  disable_on_destroy = false
+}
+
+# --- VPC & GKE ---
 resource "google_compute_network" "ai_vpc" {
   name                    = "ecom-ai-mcp-network"
   auto_create_subnetworks = true
+  depends_on              = [google_project_service.compute]
 }
 
 resource "google_container_cluster" "ai_cluster" {
@@ -34,6 +47,7 @@ resource "google_container_cluster" "ai_cluster" {
   network  = google_compute_network.ai_vpc.name
 
   enable_autopilot = true
+  depends_on       = [google_project_service.container]
 }
 
 output "kubernetes_cluster_name" {

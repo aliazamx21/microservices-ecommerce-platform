@@ -29,6 +29,7 @@ resource "azurerm_kubernetes_cluster" "devops_aks" {
   location            = azurerm_resource_group.devops_rg.location
   resource_group_name = azurerm_resource_group.devops_rg.name
   dns_prefix          = "ecom-devops-aks"
+  oidc_issuer_enabled = true
 
   default_node_pool {
     name       = "devopspool"
