@@ -23,15 +23,9 @@ variable "gcp_project_id" {
   description = "The ID of your Google Cloud Project"
 }
 
-resource "google_project_service" "compute_api" {
-  service            = "compute.googleapis.com"
-  disable_on_destroy = false
-}
-
 resource "google_compute_network" "ai_vpc" {
   name                    = "ecom-ai-mcp-network"
   auto_create_subnetworks = true
-  depends_on              = [google_project_service.compute_api]
 }
 
 resource "google_container_cluster" "ai_cluster" {
@@ -40,7 +34,6 @@ resource "google_container_cluster" "ai_cluster" {
   network  = google_compute_network.ai_vpc.name
 
   enable_autopilot = true
-  depends_on       = [google_project_service.compute_api]
 }
 
 output "kubernetes_cluster_name" {
