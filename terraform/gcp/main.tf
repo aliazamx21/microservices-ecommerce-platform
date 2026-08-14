@@ -23,13 +23,15 @@ variable "gcp_project_id" {
   description = "The ID of your Google Cloud Project"
 }
 
-# --- AUTOMATICALLY ENABLE REQUIRED APIS (Fixes 403 Errors) ---
+# --- EXPLICIT PROJECT SERVICE ENABLEMENT ---
 resource "google_project_service" "compute" {
+  project            = var.gcp_project_id
   service            = "compute.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "container" {
+  project            = var.gcp_project_id
   service            = "container.googleapis.com"
   disable_on_destroy = false
 }
