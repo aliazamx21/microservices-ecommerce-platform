@@ -21,23 +21,21 @@ variable "gcp_project_id" {
   type        = string
 }
 
-# Explicitly tell Terraform to ensure the Compute API is active using the provider's token
-resource "google_project_service" "compute_api" {
-  project            = var.gcp_project_id
-  service            = "compute.googleapis.com"
-  disable_on_destroy = false
+# Import/Data-source approach: Tells Terraform the API exists without trying to modify it
+data "google_project_service" "compute" {
+  project = var.gcp_project_id
+  service = "compute.googleapis.com"
 }
 
-resource "google_project_service" "container_api" {
-  project            = var.gcp_project_id
-  service            = "container.googleapis.com"
-  disable_on_destroy = false
+data "google_project_service" "container" {
+  project = var.gcp_project_id
+  service = "container.googleapis.com"
 }
 
 resource "google_compute_network" "ai_vpc" {
   name                    = "ecom-ai-mcp-network"
   auto_create_subnetworks = true
-  depends_on              = [google_project_service.compute_api]
+  depends_on              = [data.google_project_service.compute]
 }
 
 resource "google_container_cluster" "ai_cluster" {
@@ -45,5 +43,5 @@ resource "google_container_cluster" "ai_cluster" {
   location         = "asia-south1"
   network          = google_compute_network.ai_vpc.name
   enable_autopilot = true
-  depends_on       = [google_project_service.container_api]
+  depends_on       = [data.google_project_service.container]
 }
