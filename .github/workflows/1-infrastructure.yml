@@ -76,7 +76,7 @@ jobs:
         run: |
           cd terraform/gcp
           terraform init
-          terraform apply -auto-approve -var="gcp_project_id=${{ secrets.GCP_PROJECT_ID }}"
+          terraform apply -auto-approve -var="gcp_project_id=${{ secrets.GCP_PROJECT_ID }}" -var="gcp_credentials='${{ secrets.GCP_CREDENTIALS }}'"
 
       - name: Set up GKE credentials
         uses: google-github-actions/get-gke-credentials@v2
