@@ -42,4 +42,4 @@ output "kubernetes_cluster_name" {
 output "kubernetes_cluster_location" {
   value       = google_container_cluster.ai_cluster.location
   description = "The region of the GKE cluster"
-}c
+}
