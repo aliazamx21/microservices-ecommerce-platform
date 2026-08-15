@@ -1,4 +1,4 @@
-package com.ecom.sandbox.tool;
+package com.ai_mcp_sandbox.tool;
 
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -43,7 +43,7 @@ public class ProductSearchTool {
 
             if (!alternatives.isEmpty()) {
                 List<String> fallbackContent = alternatives.stream()
-                        .map(Document::getContent)
+                        .map(Document::getText) // <-- CHANGED HERE
                         .collect(Collectors.toList());
                 fallbackContent.add(0, "[SYSTEM NOTE FOR AI]: No exact vector match found for query '" + query + "'. The items below are alternative available products. Reframe your response as a friendly concierge offering these as relevant alternatives.");
                 return fallbackContent;
@@ -52,7 +52,7 @@ public class ProductSearchTool {
         }
 
         return results.stream()
-                .map(Document::getContent)
+                .map(Document::getText) // <-- CHANGED HERE
                 .collect(Collectors.toList());
     }
 }
