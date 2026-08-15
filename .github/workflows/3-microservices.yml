@@ -102,8 +102,6 @@ jobs:
           
           if [ -f "k8s/microservices/${{ matrix.service_name }}.yaml" ]; then
             kubectl apply -f k8s/microservices/${{ matrix.service_name }}.yaml
-          elif [ -f "k8s/ai/${{ matrix.service_name }}.yaml" ]; then
-            kubectl apply -f k8s/ai/${{ matrix.service_name }}.yaml
           else
             echo "Error: Deployment file for ${{ matrix.service_name }} not found!"
             exit 1
@@ -130,13 +128,8 @@ jobs:
         run: |
           gcloud container clusters get-credentials ecom-ai-cluster --region asia-south1
           
-          if [ -f "k8s/ai/${{ matrix.service_name }}.yaml" ]; then
-            kubectl apply -f k8s/ai/${{ matrix.service_name }}.yaml
-          elif [ -f "k8s/microservices/${{ matrix.service_name }}.yaml" ]; then
-            kubectl apply -f k8s/microservices/${{ matrix.service_name }}.yaml
-          else
-            echo "Error: Deployment file for ${{ matrix.service_name }} not found!"
-            exit 1
-          fi
+          # Apply the centralized combined AI manifest file
+          kubectl apply -f k8s/ai/ai-services.yaml
           
-          kubectl rollout restart deployment ${{ matrix.service_name }}-deployment || true
+          kubectl rollout restart deployment ai-mcp-client-deployment || true
+          kubectl rollout restart deployment ai-mcp-sandbox-deployment || true
