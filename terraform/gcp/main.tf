@@ -13,14 +13,8 @@ terraform {
 }
 
 provider "google" {
-  credentials = var.gcp_credentials
-  project     = var.gcp_project_id
-  region      = "asia-south1"
-}
-
-variable "gcp_credentials" {
-  type        = string
-  description = "The JSON content of the GCP service account key"
+  project = var.gcp_project_id
+  region  = "asia-south1"
 }
 
 variable "gcp_project_id" {

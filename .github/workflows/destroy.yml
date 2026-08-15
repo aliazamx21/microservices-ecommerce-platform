@@ -21,7 +21,7 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Azure Login
         uses: azure/login@v2
@@ -37,6 +37,11 @@ jobs:
       - name: Clean up AWS EKS Services
         run: |
           aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster || true
+          kubectl delete svc --all --all-namespaces --ignore-not-found=true
+
+      - name: Clean up GCP GKE Services
+        run: |
+          gcloud container clusters get-credentials ecom-ai-cluster --region asia-south1 || true
           kubectl delete svc --all --all-namespaces --ignore-not-found=true
 
       # --- 3. DESTROY TERRAFORM INFRASTRUCTURE ---

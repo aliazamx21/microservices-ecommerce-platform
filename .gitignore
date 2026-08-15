@@ -1,5 +1,27 @@
+# IDEs and Editors
 .idea/
 *.iml
+
+# Build output
 target/
+
+# Environment variables
 .env
+
+# Logs
 *.log
+crash.log
+crash.*.log
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc

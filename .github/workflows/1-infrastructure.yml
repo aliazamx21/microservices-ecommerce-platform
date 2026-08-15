@@ -82,3 +82,99 @@ jobs:
             --dry-run=client \
             -o yaml | kubectl apply -f -
 
+  # ============================================================
+  # GCP
+  # ============================================================
+  gcp-infrastructure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform/gcp
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform/gcp
+        run: |
+          terraform apply \
+            -auto-approve \
+            -var="gcp_project_id=${{ secrets.GCP_PROJECT_ID }}"
+
+      - name: Update Kubeconfig for GKE
+        run: |
+          gcloud container clusters get-credentials ecom-ai-cluster \
+            --region asia-south1
+
+      - name: Inject Application Secrets to GKE
+        run: |
+          kubectl create secret generic ecommerce-secrets \
+            --from-literal=SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            --from-literal=STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
+            --from-literal=STRIPE_WEBHOOK_SECRET="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
+            --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
+  # ============================================================
+  # AZURE
+  # ============================================================
+  azure-infrastructure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform/azure
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform/azure
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          terraform apply -auto-approve
+
+      - name: Update Kubeconfig for AKS
+        run: |
+          az aks get-credentials \
+            --resource-group ecom-devops-rg \
+            --name ecom-devops-aks \
+            --overwrite-existing
+
+      - name: Inject Application Secrets to AKS
+        run: |
+          kubectl create secret generic ecommerce-secrets \
+            --from-literal=SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            --from-literal=STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
+            --from-literal=STRIPE_WEBHOOK_SECRET="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
+            --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
