@@ -114,10 +114,19 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+          install_components: 'gke-gcloud-auth-plugin'
 
       - name: Update Kubeconfig & Deploy to GKE (AI Services)
         if: ${{ matrix.service_name == 'ai-mcp-client' || matrix.service_name == 'ai-mcp-sandbox' }}
         run: |
           gcloud container clusters get-credentials ecom-ai-cluster --region asia-south1
-          kubectl apply -f k8s/microservices/${{ matrix.service_name }}.yaml
+          
+          # Smart path detection: Check if the YAML is in the AI folder or microservices folder
+          if [ -f "k8s/ai/${{ matrix.service_name }}.yaml" ]; then
+            DEPLOY_PATH="k8s/ai/${{ matrix.service_name }}.yaml"
+          else
+            DEPLOY_PATH="k8s/microservices/${{ matrix.service_name }}.yaml"
+          fi
+          
+          kubectl apply -f $DEPLOY_PATH
           kubectl rollout restart deployment ${{ matrix.service_name }}-deployment || true
