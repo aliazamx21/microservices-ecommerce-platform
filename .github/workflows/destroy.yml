@@ -21,7 +21,12 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Azure Login
         uses: azure/login@v2
@@ -49,19 +54,21 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Destroy Azure Infrastructure
+        working-directory: terraform/azure
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
-          cd terraform/azure
           terraform init
           terraform destroy -auto-approve
 
       - name: Destroy AWS Infrastructure
+        working-directory: terraform/aws
         run: |
-          cd terraform/aws
           terraform init
           terraform destroy -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
 
       - name: Destroy GCP Infrastructure
+        working-directory: terraform/gcp
         run: |
-          cd terraform/gcp
           terraform init
           terraform destroy -auto-approve -var="gcp_project_id=${{ secrets.GCP_PROJECT_ID }}"
