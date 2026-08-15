@@ -13,8 +13,6 @@ on:
       - 'order-service/**'
       - 'payment-service/**'
       - 'product-service/**'
-      - 'ai-mcp-client/**'
-      - 'ai-mcp-sandbox/**'
   workflow_dispatch:
 
 jobs:
@@ -38,8 +36,6 @@ jobs:
             order-service: 'order-service/**'
             payment-service: 'payment-service/**'
             product-service: 'product-service/**'
-            ai-mcp-client: 'ai-mcp-client/**'
-            ai-mcp-sandbox: 'ai-mcp-sandbox/**'
 
   build-and-deploy:
     needs: detect-changes
@@ -77,26 +73,19 @@ jobs:
           SERVICE_PATH="${{ matrix.service_name }}"
           [ -f "$SERVICE_PATH/Dockerfile" ] || SERVICE_PATH="$SERVICE_PATH/$SERVICE_PATH"
           
-          if [ "${{ matrix.service_name }}" == "ai-mcp-client" ] || [ "${{ matrix.service_name }}" == "ai-mcp-sandbox" ]; then
-            IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/ecom-platform:${{ matrix.service_name }}"
-          else
-            IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-platform:${{ matrix.service_name }}"
-          fi
+          IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-platform:${{ matrix.service_name }}"
           
           docker build -t "$IMAGE_TAG" "$SERVICE_PATH"
           docker push "$IMAGE_TAG"
 
-      # --- AWS DEPLOYMENT FOR STANDARD MICROSERVICES ---
       - name: Configure AWS Credentials
-        if: ${{ matrix.service_name != 'ai-mcp-client' && matrix.service_name != 'ai-mcp-sandbox' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      - name: Update Kubeconfig & Deploy to EKS (Standard Microservices)
-        if: ${{ matrix.service_name != 'ai-mcp-client' && matrix.service_name != 'ai-mcp-sandbox' }}
+      - name: Update Kubeconfig & Deploy to EKS
         run: |
           aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
           
@@ -108,28 +97,3 @@ jobs:
           fi
           
           kubectl rollout restart deployment ${{ matrix.service_name }}-deployment || true
-
-      # --- GCP DEPLOYMENT FOR AI MICROSERVICES ---
-      - name: Authenticate to GCP (AI Services)
-        if: ${{ matrix.service_name == 'ai-mcp-client' || matrix.service_name == 'ai-mcp-sandbox' }}
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-
-      - name: Setup gcloud
-        if: ${{ matrix.service_name == 'ai-mcp-client' || matrix.service_name == 'ai-mcp-sandbox' }}
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          install_components: 'gke-gcloud-auth-plugin'
-
-      - name: Update Kubeconfig & Deploy to GKE (AI Services)
-        if: ${{ matrix.service_name == 'ai-mcp-client' || matrix.service_name == 'ai-mcp-sandbox' }}
-        run: |
-          gcloud container clusters get-credentials ecom-ai-cluster --region asia-south1
-          
-          # Apply the centralized combined AI manifest file
-          kubectl apply -f k8s/ai/ai-services.yaml
-          
-          kubectl rollout restart deployment ai-mcp-client-deployment || true
-          kubectl rollout restart deployment ai-mcp-sandbox-deployment || true
