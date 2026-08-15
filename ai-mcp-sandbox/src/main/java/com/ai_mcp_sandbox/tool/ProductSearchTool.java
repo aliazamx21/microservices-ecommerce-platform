@@ -20,9 +20,13 @@ public class ProductSearchTool {
 
     @Tool(description = "Search e-commerce products using natural language query, preferences, or budget limits.")
     public List<String> searchProductsVector(String query, int topK) {
-        SearchRequest searchRequest = SearchRequest.query(query)
-                .withTopK(topK > 0 ? topK : 3)
-                .withSimilarityThreshold(0.5);
+
+        // Updated to the modern Spring AI SearchRequest Builder API
+        SearchRequest searchRequest = SearchRequest.builder()
+                .query(query)
+                .topK(topK > 0 ? topK : 3)
+                .similarityThreshold(0.5)
+                .build();
 
         List<Document> results = vectorStore.similaritySearch(searchRequest);
 
@@ -31,8 +35,10 @@ public class ProductSearchTool {
         // so the AI Concierge never turns a customer away empty-handed!
         if (results.isEmpty()) {
             List<Document> alternatives = vectorStore.similaritySearch(
-                    SearchRequest.query("electronics laptop product")
-                            .withTopK(3)
+                    SearchRequest.builder()
+                            .query("electronics laptop product")
+                            .topK(3)
+                            .build()
             );
 
             if (!alternatives.isEmpty()) {

@@ -27,6 +27,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+          install_components: 'gke-gcloud-auth-plugin'
 
       - name: Azure Login
         uses: azure/login@v2
@@ -72,3 +73,18 @@ jobs:
         run: |
           terraform init
           terraform destroy -auto-approve -var="gcp_project_id=${{ secrets.GCP_PROJECT_ID }}"
+
+      # --- 4. CLEAN UP DOCKER HUB IMAGES ---
+      - name: Delete Docker Hub Repositories
+        run: |
+          echo "Authenticating with Docker Hub API..."
+          TOKEN=$(curl -s -X POST https://hub.docker.com/v2/users/login/ \
+            -H "Content-Type: application/json" \
+            -d "{\"username\": \"${{ secrets.DOCKERHUB_USERNAME }}\", \"password\": \"${{ secrets.DOCKERHUB_TOKEN }}\"}" \
+            | jq -r .token)
+          
+          echo "Deleting ecommerce-platform repository..."
+          curl -s -X DELETE -H "Authorization: JWT $TOKEN" "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-platform/"
+          
+          echo "Deleting ecom-platform repository..."
+          curl -s -X DELETE -H "Authorization: JWT $TOKEN" "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ecom-platform/"

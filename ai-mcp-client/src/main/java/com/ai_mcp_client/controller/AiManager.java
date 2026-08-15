@@ -15,7 +15,7 @@ public class AiManager implements CommandLineRunner {
 
         // Bind all remote MCP tools (from your sandbox) to this AI Client globally
         this.chatClient = builder
-                .defaultToolCallbacks(toolCallbackProvider.getToolCallbacks())
+                .defaultTools(toolCallbackProvider)
                 .build();
     }
 

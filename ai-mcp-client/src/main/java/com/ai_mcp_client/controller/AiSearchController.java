@@ -13,7 +13,7 @@ public class AiSearchController {
     public AiSearchController(ChatClient.Builder builder, ToolCallbackProvider toolCallbackProvider) {
         // Bind the remote MCP tools from the sandbox to this ChatClient globally
         this.chatClient = builder
-                .defaultToolCallbacks(toolCallbackProvider.getToolCallbacks())
+                .defaultTools(toolCallbackProvider)
                 .build();
     }
 
