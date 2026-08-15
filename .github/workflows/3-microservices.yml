@@ -99,7 +99,16 @@ jobs:
         if: ${{ matrix.service_name != 'ai-mcp-client' && matrix.service_name != 'ai-mcp-sandbox' }}
         run: |
           aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
-          kubectl apply -f k8s/microservices/${{ matrix.service_name }}.yaml
+          
+          if [ -f "k8s/microservices/${{ matrix.service_name }}.yaml" ]; then
+            kubectl apply -f k8s/microservices/${{ matrix.service_name }}.yaml
+          elif [ -f "k8s/ai/${{ matrix.service_name }}.yaml" ]; then
+            kubectl apply -f k8s/ai/${{ matrix.service_name }}.yaml
+          else
+            echo "Error: Deployment file for ${{ matrix.service_name }} not found!"
+            exit 1
+          fi
+          
           kubectl rollout restart deployment ${{ matrix.service_name }}-deployment || true
 
       # --- GCP DEPLOYMENT FOR AI MICROSERVICES ---
@@ -121,12 +130,13 @@ jobs:
         run: |
           gcloud container clusters get-credentials ecom-ai-cluster --region asia-south1
           
-          # Smart path detection: Check if the YAML is in the AI folder or microservices folder
           if [ -f "k8s/ai/${{ matrix.service_name }}.yaml" ]; then
-            DEPLOY_PATH="k8s/ai/${{ matrix.service_name }}.yaml"
+            kubectl apply -f k8s/ai/${{ matrix.service_name }}.yaml
+          elif [ -f "k8s/microservices/${{ matrix.service_name }}.yaml" ]; then
+            kubectl apply -f k8s/microservices/${{ matrix.service_name }}.yaml
           else
-            DEPLOY_PATH="k8s/microservices/${{ matrix.service_name }}.yaml"
+            echo "Error: Deployment file for ${{ matrix.service_name }} not found!"
+            exit 1
           fi
           
-          kubectl apply -f $DEPLOY_PATH
           kubectl rollout restart deployment ${{ matrix.service_name }}-deployment || true
