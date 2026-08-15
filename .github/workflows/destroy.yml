@@ -36,16 +36,19 @@ jobs:
 
       # --- 2. TEARDOWN K8S LOAD BALANCERS BEFORE TERRAFORM ---
       - name: Clean up Azure AKS Services
+        continue-on-error: true
         run: |
           az aks get-credentials --resource-group ecom-devops-rg --name ecom-devops-aks || true
           kubectl delete svc --all --all-namespaces --ignore-not-found=true
 
       - name: Clean up AWS EKS Services
+        continue-on-error: true
         run: |
           aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster || true
           kubectl delete svc --all --all-namespaces --ignore-not-found=true
 
       - name: Clean up GCP GKE Services
+        continue-on-error: true
         run: |
           gcloud container clusters get-credentials ecom-ai-cluster --region asia-south1 || true
           kubectl delete svc --all --all-namespaces --ignore-not-found=true
@@ -55,6 +58,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Destroy Azure Infrastructure
+        if: always()
         working-directory: terraform/azure
         env:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -63,12 +67,14 @@ jobs:
           terraform destroy -auto-approve
 
       - name: Destroy AWS Infrastructure
+        if: always()
         working-directory: terraform/aws
         run: |
           terraform init
           terraform destroy -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
 
       - name: Destroy GCP Infrastructure
+        if: always()
         working-directory: terraform/gcp
         run: |
           terraform init
@@ -76,6 +82,7 @@ jobs:
 
       # --- 4. CLEAN UP DOCKER HUB IMAGES ---
       - name: Delete Docker Hub Repositories
+        if: always()
         run: |
           echo "Authenticating with Docker Hub API..."
           TOKEN=$(curl -s -X POST https://hub.docker.com/v2/users/login/ \
