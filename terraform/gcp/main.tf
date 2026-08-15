@@ -28,10 +28,11 @@ resource "google_compute_network" "ai_vpc" {
 }
 
 resource "google_container_cluster" "ai_cluster" {
-  name             = "ecom-ai-cluster"
-  location         = "asia-south1"
-  network          = google_compute_network.ai_vpc.name
-  enable_autopilot = true
+  name                = "ecom-ai-cluster"
+  location            = "asia-south1"
+  network             = google_compute_network.ai_vpc.name
+  enable_autopilot    = true
+  deletion_protection = false
 }
 
 output "kubernetes_cluster_name" {

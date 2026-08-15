@@ -73,6 +73,13 @@ jobs:
             --dry-run=client \
             -o yaml | kubectl apply -f -
 
+      - name: Inject AI Secrets to EKS
+        run: |
+          kubectl create secret generic ai-secrets \
+            --from-literal=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
       - name: Create Docker Hub Secret in EKS
         run: |
           kubectl create secret docker-registry dockerhub-secret \
@@ -129,6 +136,13 @@ jobs:
             --from-literal=STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
             --from-literal=STRIPE_WEBHOOK_SECRET="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
+      - name: Inject AI Secrets to GKE
+        run: |
+          kubectl create secret generic ai-secrets \
+            --from-literal=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             --dry-run=client \
             -o yaml | kubectl apply -f -
 
