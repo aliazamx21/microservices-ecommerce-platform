@@ -2,16 +2,25 @@ name: 1-infrastructure
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
-      - 'terraform/aws/**'
-      - 'terraform/gcp/**'
-      - 'terraform/azure/**'
+      - "terraform/aws/**"
+      - "terraform/gcp/**"
+      - "terraform/azure/**"
+
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+  # ============================================================
+  # AWS
+  # ============================================================
   aws-infrastructure:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -26,23 +35,34 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init & Apply (AWS)
+      - name: Terraform Init
+        working-directory: terraform/aws
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform/aws
         run: |
-          cd terraform/aws
-          terraform init
-          terraform apply -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
+          terraform apply \
+            -auto-approve \
+            -var="db_password=${{ secrets.DB_PASSWORD }}"
 
       - name: Update Kubeconfig for AWS EKS
-        run: aws eks update-kubeconfig --region ap-south-1 --name ecommerce-cluster
-
-      - name: Inject Infrastructure Config & Secrets to EKS
         run: |
-          cd terraform/aws
+          aws eks update-kubeconfig \
+            --region ap-south-1 \
+            --name ecommerce-cluster
+
+      - name: Inject Infrastructure Config to EKS
+        working-directory: terraform/aws
+        run: |
           kubectl create configmap infra-config \
-            --from-literal=DB_ENDPOINT=$(terraform output -raw rds_endpoint) \
-            --from-literal=S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name) \
-            -o yaml --dry-run=client | kubectl apply -f -
-          
+            --from-literal=DB_ENDPOINT="$(terraform output -raw rds_endpoint)" \
+            --from-literal=S3_BUCKET_NAME="$(terraform output -raw s3_bucket_name)" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
+      - name: Inject Application Secrets to EKS
+        run: |
           kubectl create secret generic ecommerce-secrets \
             --from-literal=SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
             --from-literal=STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
@@ -50,81 +70,15 @@ jobs:
             --from-literal=AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
             --from-literal=AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
-          
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
+      - name: Create Docker Hub Secret in EKS
+        run: |
           kubectl create secret docker-registry dockerhub-secret \
             --docker-server=https://index.docker.io/v1/ \
             --docker-username="${{ secrets.DOCKERHUB_USERNAME }}" \
             --docker-password="${{ secrets.DOCKERHUB_TOKEN }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
 
-  gcp-infrastructure:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init & Apply (GCP)
-        run: |
-          cd terraform/gcp
-          terraform init
-          terraform apply -auto-approve -var="gcp_project_id=${{ secrets.GCP_PROJECT_ID }}" -var="gcp_credentials='${{ secrets.GCP_CREDENTIALS }}'"
-
-      - name: Set up GKE credentials
-        uses: google-github-actions/get-gke-credentials@v2
-        with:
-          cluster_name: 'ecom-ai-cluster'
-          location: 'asia-south1'
-
-      - name: Inject Secrets & Deploy Vector/AI to GKE
-        run: |
-          kubectl create secret generic ai-secrets \
-            --from-literal=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
-          
-          kubectl create secret docker-registry dockerhub-secret \
-            --docker-server=https://index.docker.io/v1/ \
-            --docker-username="${{ secrets.DOCKERHUB_USERNAME }}" \
-            --docker-password="${{ secrets.DOCKERHUB_TOKEN }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
-          
-          # Checked paths relative to repository root
-          kubectl apply -f terraform/gcp/k8s/ai/vector-store.yaml || true
-          kubectl apply -f terraform/gcp/k8s/ai/ai-services.yaml || true
-
-  azure-infrastructure:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init & Apply (Azure)
-        run: |
-          cd terraform/azure
-          terraform init
-          terraform apply -auto-approve
-
-      - name: Inject Docker Hub Secret to AKS
-        run: |
-          az aks get-credentials --resource-group ecom-devops-rg --name ecom-devops-aks --overwrite-existing
-          kubectl create secret docker-registry dockerhub-secret \
-            --docker-server=https://index.docker.io/v1/ \
-            --docker-username="${{ secrets.DOCKERHUB_USERNAME }}" \
-            --docker-password="${{ secrets.DOCKERHUB_TOKEN }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
